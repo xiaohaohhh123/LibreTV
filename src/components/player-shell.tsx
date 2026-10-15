@@ -76,6 +76,10 @@ export function PlayerShell({
   // 跳过片头 / 片尾下一集 悬浮按钮
   const [showSkipIntro, setShowSkipIntro] = useState(false);
   const [showNextEp, setShowNextEp] = useState(false);
+  // —— 锁屏（对标腾讯视频移动端）：锁定后屏蔽所有触摸操作，只留解锁按钮 ——
+  const [locked, setLocked] = useState(false);
+  // 锁屏状态同步到 ref，供触摸/快捷键处理器读取
+  useEffect(() => { lockedRef.current = locked; }, [locked]);
   // 本集是否已跳过/播过片头（换集重置）
   const introDoneRef = useRef(false);
   // 按钮显隐的上一帧状态，避免 timeupdate 高频 setState
@@ -112,6 +116,7 @@ export function PlayerShell({
   const recoveryRef = useRef<PlaybackRecovery | null>(null);
   // 自然播完标记，卸载时不回写进度（避免覆盖「已看完」记录）
   const endedRef = useRef(false);
+  const lockedRef = useRef(false);
 
   const showHint = (text: string) => {
     setHint(text);
@@ -456,6 +461,7 @@ export function PlayerShell({
     const el = containerRef.current;
 
     const onTouchStart = (e: TouchEvent) => {
+      if (lockedRef.current) return;
       if (art.video?.paused) return;
       // 已有触控在处理时忽略新手指：否则第二指会把 originalRate 捕获成 3.0，
       // 松手后倍速永久卡在 3x；旧定时器句柄也会被覆盖成无法清除的幽灵触发
@@ -540,6 +546,7 @@ export function PlayerShell({
       if (t) { downX = t.clientX; downY = t.clientY; }
     };
     const onTouchEndCapture = (e: TouchEvent) => {
+      if (lockedRef.current) return;
       if ((e.target as HTMLElement).closest?.('.art-controls, .art-settings, button')) return;
       const t = e.changedTouches[0];
       if (!t) return;
@@ -652,6 +659,39 @@ export function PlayerShell({
         >
           下一集 ›
         </button>
+      )}
+      {/* 锁屏按钮（对标腾讯视频）：右上角小锁 */}
+      {!error && !locked && (
+        <button
+          aria-label="锁定屏幕"
+          className="absolute top-3 right-3 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 text-white/90 active:scale-95 transition"
+          onClick={() => { setLocked(true); showHint('屏幕已锁定'); }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <rect x="4" y="10" width="16" height="11" rx="2" />
+            <path d="M8 10 V7 a4 4 0 0 1 8 0 v3" />
+          </svg>
+        </button>
+      )}
+      {/* 锁屏遮罩：屏蔽所有触摸，只留解锁按钮 */}
+      {locked && !error && (
+        <div
+          className="absolute inset-0 z-20 flex items-center justify-center bg-black/30"
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            aria-label="解锁屏幕"
+            className="w-14 h-14 flex items-center justify-center rounded-full bg-black/60 text-white active:scale-95 transition"
+            onClick={() => { setLocked(false); showHint('屏幕已解锁'); }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <rect x="4" y="10" width="16" height="11" rx="2" />
+              <path d="M8 10 V7 a4 4 0 0 1 7.5 -2" />
+            </svg>
+          </button>
+        </div>
       )}
     </div>
   );
