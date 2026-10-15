@@ -6,6 +6,7 @@ import type { SearchResultItem } from '@/lib/types';
 import { VideoCard } from '@/components/video-card';
 import { DetailModal } from '@/components/detail-modal';
 import { EmptyState, Spinner } from '@/components/states';
+import { isAdultContent } from '@/lib/cms-parser';
 
 export interface BrowseCategory {
   id: number;
@@ -47,21 +48,31 @@ export default function BrowsePage() {
     if (!src) return;
     setLoading(true);
     setError('');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
     try {
       const res = await fetch('/api/browse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: { key: src.key, name: src.name, url: src.url } }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || '获取分类失败');
-      const cats: BrowseCategory[] = data.categories ?? [];
+      // 前端兜底：再次过滤成人分类（API 层已过滤）
+      const cats: BrowseCategory[] = (data.categories ?? []).filter(
+        (c: BrowseCategory) => !isAdultContent(c.name)
+      );
       setState({ categories: cats, list: [], page: 1, pagecount: 1 });
       setTypeId(cats[0]?.id ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '获取分类失败');
+      const msg = err instanceof Error
+        ? (err.name === 'AbortError' ? '请求超时，换个片源试试' : err.message)
+        : '获取分类失败';
+      setError(msg);
       setState({ categories: [], list: [], page: 1, pagecount: 1 });
     } finally {
+      clearTimeout(timer);
       setLoading(false);
     }
   }, [enabledSources]);

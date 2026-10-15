@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { guardRequest } from '@/lib/api-guard';
-import { cmsRequestHeaders, parseSearchList } from '@/lib/cms-parser';
+import { cmsRequestHeaders, isAdultContent, parseSearchList } from '@/lib/cms-parser';
 import { fetchUpstream } from '@/lib/fetch-utils';
 import { checkUpstreamAllowed } from '@/lib/ssrf';
 import type { SearchResultItem, SourceConfig } from '@/lib/types';
@@ -38,6 +38,8 @@ function parseCategories(data: unknown): BrowseCategory[] {
       const id = parseInt(String(o.type_id ?? ''), 10);
       const name = String(o.type_name ?? '').trim();
       if (!Number.isFinite(id) || !name) return null;
+      // 成人分类直接过滤，不返回给前端
+      if (isAdultContent(name)) return null;
       return { id, name };
     })
     .filter((c): c is BrowseCategory => c !== null);
@@ -82,7 +84,7 @@ export async function POST(req: Request) {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const list = parseSearchList(data, source);
+    const list = parseSearchList(data, source).filter((item) => !isAdultContent(item.typeName));
     const rawPageCount = parseInt(String((data as { pagecount?: unknown }).pagecount ?? '1'), 10);
     const pagecount = Number.isFinite(rawPageCount) ? Math.max(1, rawPageCount) : 1;
     return NextResponse.json({ ok: true, list, page: pg, pagecount } satisfies BrowseResponse);

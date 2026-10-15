@@ -86,6 +86,7 @@ export function PlayerShell({
   const skipShownRef = useRef(false);
   const nextShownRef = useRef(false);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 始终持有最新 props/回调，避免重建播放器
   const propsRef = useRef({
@@ -133,9 +134,9 @@ export function PlayerShell({
       debug: false,
       enableWorker: true,
       backBufferLength: 90,
-      maxBufferLength: cacheEnabled ? 120 : 30,
-      maxMaxBufferLength: cacheEnabled ? 600 : 60,
-      maxBufferSize: (cacheEnabled ? 90 : 30) * 1000 * 1000,
+      maxBufferLength: cacheEnabled ? 120 : 60,
+      maxMaxBufferLength: cacheEnabled ? 600 : 120,
+      maxBufferSize: (cacheEnabled ? 90 : 60) * 1000 * 1000,
       maxBufferHole: 0.5,
       fragLoadingMaxRetry: 6,
       fragLoadingRetryDelay: 1000,
@@ -386,9 +387,20 @@ export function PlayerShell({
     art.on('video:waiting', () => {
       // 卡顿：预取临时让出带宽给播放
       getVideoPrefetcher().setThrottled(true);
+      // 卡顿检测：连续缓冲超过 8 秒，提示用户换源
+      if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+      stallTimerRef.current = setTimeout(() => {
+        stallTimerRef.current = null;
+        propsRef.current.onRequestSwitchSource?.('当前线路缓冲较慢，换个线路试试');
+      }, 8000);
     });
     art.on('video:playing', () => {
       getVideoPrefetcher().setThrottled(false);
+      // 恢复播放：清除卡顿计时
+      if (stallTimerRef.current) {
+        clearTimeout(stallTimerRef.current);
+        stallTimerRef.current = null;
+      }
     });
     art.on('video:ended', () => {
       endedRef.current = true;

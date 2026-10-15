@@ -251,6 +251,7 @@ function WatchContent() {
                   onTimeUpdate={handleProgress}
                   onPause={handleProgress}
                   onEnded={handleEnded}
+                  onRequestSwitchSource={() => setSwitchOpen(true)}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
