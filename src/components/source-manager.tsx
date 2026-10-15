@@ -15,6 +15,7 @@ import {
   Switch,
   useSourceTests,
   type TestState,
+  NumberRow,
 } from './settings-shared';
 import { loadCacheSettings, saveCacheSettings, getCacheSummary, clearVideoCache, type CacheSummary } from '@/lib/video-cache';
 import { EmptyState, Spinner } from './states';
@@ -573,6 +574,18 @@ function PlaybackPanel() {
           description="单集播放结束后自动播放下一集"
           checked={store.autoplayNext}
           onChange={(v) => store.updateSettings({ autoplayNext: v })}
+        />
+        <NumberRow
+          label="跳过片头"
+          description="片头显示「跳过片头」按钮，一键跳过指定时长；设为 0 关闭"
+          value={store.skipIntroSeconds}
+          onChange={(v) => store.updateSettings({ skipIntroSeconds: v })}
+        />
+        <NumberRow
+          label="片尾预告下一集"
+          description="片尾剩余指定时长时显示「下一集」按钮；设为 0 关闭"
+          value={store.outroNextSeconds}
+          onChange={(v) => store.updateSettings({ outroNextSeconds: v })}
         />
       </div>
       <VideoCachePanel />

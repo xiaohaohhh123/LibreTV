@@ -244,6 +244,9 @@ function WatchContent() {
                   episodeKey={`${sourceKey}:${vodId}:${currentIndex}`}
                   nextUrl={currentIndex + 1 < episodes.length ? episodes[currentIndex + 1] : undefined}
                   nextEpisodeKey={currentIndex + 1 < episodes.length ? `${sourceKey}:${vodId}:${currentIndex + 1}` : undefined}
+                  skipIntroSeconds={store.skipIntroSeconds}
+                  outroNextSeconds={store.outroNextSeconds}
+                  onRequestNext={currentIndex + 1 < episodes.length ? () => goEpisode(currentIndex + 1) : undefined}
                   getRestorePosition={getRestorePosition}
                   onTimeUpdate={handleProgress}
                   onPause={handleProgress}

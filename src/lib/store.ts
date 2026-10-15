@@ -22,6 +22,10 @@ export interface AppSettings {
   /** 用户是否在设置中主动选择过推荐数据源；为 false 时部署者的 DEFAULT_RECOMMEND_SOURCE 默认值可生效 */
   recommendSourceTouched: boolean;
   autoplayNext: boolean;
+  /** 跳过片头秒数：0 为关闭；>0 时片头显示「跳过片头」按钮 */
+  skipIntroSeconds: number;
+  /** 片尾剩余秒数：0 为关闭；>0 时片尾显示「下一集」按钮 */
+  outroNextSeconds: number;
   imageProxyMode: 'direct' | 'proxy' | 'custom';
   /** 用户是否在设置中主动选择过封面图加载方式；为 false 时部署者的 DEFAULT_IMAGE_MODE 默认值可生效 */
   imageProxyModeTouched: boolean;
@@ -295,6 +299,8 @@ export const useAppStore = create<AppState>()(
       recommendSource: 'hot-list',
       recommendSourceTouched: false,
       autoplayNext: true,
+      skipIntroSeconds: 90,
+      outroNextSeconds: 90,
       // 直连优先：豆瓣封面有公共镜像 + 内置代理两级兜底（见 buildImageCandidates），
       // 默认省服务器流量；老用户保持已持久化的选择不受影响。
       // 部署者可用 DEFAULT_IMAGE_MODE=proxy 下发内置代理优先（最稳定，吃服务器流量）

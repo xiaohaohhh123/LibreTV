@@ -33,6 +33,12 @@ interface PlayerShellProps {
   /** 下一集 m3u8 地址：当前集预取完成后预热下一集前 7 分钟 */
   nextUrl?: string;
   nextEpisodeKey?: string;
+  /** 跳过片头秒数（0=关闭）；片头显示「跳过片头」按钮 */
+  skipIntroSeconds?: number;
+  /** 片尾剩余秒数（0=关闭）；片尾显示「下一集」按钮 */
+  outroNextSeconds?: number;
+  /** 切下一集回调（父级提供 goEpisode）；缺省时不显示「下一集」按钮 */
+  onRequestNext?: () => void;
   /** 进度恢复：优先 URL position，其次查询该回调（返回 0 表示无记录） */
   getRestorePosition?: () => number | Promise<number>;
   onTimeUpdate?: (position: number, duration: number) => void;
@@ -50,6 +56,9 @@ export function PlayerShell({
   episodeKey,
   nextUrl,
   nextEpisodeKey,
+  skipIntroSeconds = 90,
+  outroNextSeconds = 90,
+  onRequestNext,
   getRestorePosition,
   onTimeUpdate,
   onEnded,
@@ -64,15 +73,25 @@ export function PlayerShell({
   const [hint, setHint] = useState('');
   // 起播前的品牌占位图（沿用旧版 nomedia 素材），实际开始播放后隐藏
   const [showPoster, setShowPoster] = useState(true);
+  // 跳过片头 / 片尾下一集 悬浮按钮
+  const [showSkipIntro, setShowSkipIntro] = useState(false);
+  const [showNextEp, setShowNextEp] = useState(false);
+  // 本集是否已跳过/播过片头（换集重置）
+  const introDoneRef = useRef(false);
+  // 按钮显隐的上一帧状态，避免 timeupdate 高频 setState
+  const skipShownRef = useRef(false);
+  const nextShownRef = useRef(false);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 始终持有最新 props/回调，避免重建播放器
   const propsRef = useRef({
     url, title, adFilter, autoplayNext, episodeKey, nextUrl, nextEpisodeKey,
+    skipIntroSeconds, outroNextSeconds, onRequestNext,
     getRestorePosition, onTimeUpdate, onEnded, onPause, onRequestSwitchSource,
   });
   propsRef.current = {
     url, title, adFilter, autoplayNext, episodeKey, nextUrl, nextEpisodeKey,
+    skipIntroSeconds, outroNextSeconds, onRequestNext,
     getRestorePosition, onTimeUpdate, onEnded, onPause, onRequestSwitchSource,
   };
 
@@ -241,6 +260,12 @@ export function PlayerShell({
   /** 换集：重置每集状态并切换到新 HLS 源（不重建 ArtPlayer）。 */
   const loadEpisode = (targetUrl: string) => {
     if (!targetUrl) return;
+    endedRef.current = false;
+    introDoneRef.current = false;
+    skipShownRef.current = false;
+    nextShownRef.current = false;
+    setShowSkipIntro(false);
+    setShowNextEp(false);
     mediaHealthyRef.current = true;
     playbackStartedRef.current = false;
     videoErrorRetryUsedRef.current = false;
@@ -291,6 +316,7 @@ export function PlayerShell({
       playsInline: true,
       airplay: true,
       hotkey: false,
+      gesture: true,
       theme: '#2563eb',
       lang: navigator.language.toLowerCase().startsWith('zh') ? 'zh-cn' : 'en',
       moreVideoAttr: { crossOrigin: 'anonymous', playsInline: true },
@@ -362,6 +388,33 @@ export function PlayerShell({
     art.on('video:ended', () => {
       endedRef.current = true;
       propsRef.current.onEnded?.();
+    });
+    // —— 跳过片头 / 片尾「下一集」悬浮按钮的显隐 ——
+    art.on('video:timeupdate', () => {
+      const pr = propsRef.current;
+      const v = art.video as HTMLVideoElement | undefined;
+      if (!v || !Number.isFinite(v.duration) || v.duration <= 0) return;
+      const pos = v.currentTime;
+      const dur = v.duration;
+      // 片头：未跳过且仍在片头区间内 → 显示按钮
+      const introSec = pr.skipIntroSeconds ?? 90;
+      let wantSkip = false;
+      if (introSec > 0 && !introDoneRef.current) {
+        if (pos < introSec) wantSkip = true;
+        else introDoneRef.current = true; // 自然播过片头，不再打扰
+      }
+      if (wantSkip !== skipShownRef.current) {
+        skipShownRef.current = wantSkip;
+        setShowSkipIntro(wantSkip);
+      }
+      // 片尾：有下一集且剩余时长进入阈值 → 显示「下一集」
+      const outroSec = pr.outroNextSeconds ?? 90;
+      const remain = dur - pos;
+      const wantNext = outroSec > 0 && !!pr.onRequestNext && remain <= outroSec && remain > 2;
+      if (wantNext !== nextShownRef.current) {
+        nextShownRef.current = wantNext;
+        setShowNextEp(wantNext);
+      }
     });
 
     // —— 键盘快捷键（旧版 hotkey:false + 自定义逻辑的移植） ——
@@ -471,6 +524,57 @@ export function PlayerShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // —— 移动端双击快进 / 快退 10 秒（对标腾讯视频） ——
+  // 只拦截双击的第二次 tap（捕获阶段 preventDefault 吞掉合成 click），
+  // ArtPlayer 的 click 计数到不了 2，就不会误触发暂停/全屏；第一次 tap 保持原生行为。
+  // 需 passive:false 否则 preventDefault 无效；控制栏/按钮上的触摸不拦截。
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    let lastTapAt = 0;
+    let lastTapX = 0;
+    let downX = 0;
+    let downY = 0;
+    const onTouchStartCapture = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (t) { downX = t.clientX; downY = t.clientY; }
+    };
+    const onTouchEndCapture = (e: TouchEvent) => {
+      if ((e.target as HTMLElement).closest?.('.art-controls, .art-settings, button')) return;
+      const t = e.changedTouches[0];
+      if (!t) return;
+      // 滑动（手势搜进度/调音量）不算 tap
+      if (Math.abs(t.clientX - downX) > 14 || Math.abs(t.clientY - downY) > 14) return;
+      const rect = el.getBoundingClientRect();
+      const x = t.clientX - rect.left;
+      const w = rect.width;
+      const inLeft = x < w * 0.4;
+      const inRight = x > w * 0.6;
+      if (!inLeft && !inRight) return;
+      const now = Date.now();
+      if (now - lastTapAt < 350 && Math.abs(t.clientX - lastTapX) < 80) {
+        lastTapAt = 0;
+        e.preventDefault();
+        e.stopPropagation();
+        const v = artRef.current?.video as HTMLVideoElement | undefined;
+        if (v && Number.isFinite(v.duration)) {
+          const delta = inLeft ? -10 : 10;
+          v.currentTime = Math.min(Math.max(0, v.currentTime + delta), v.duration);
+          showHint(inLeft ? '快退 10 秒' : '快进 10 秒');
+        }
+      } else {
+        lastTapAt = now;
+        lastTapX = t.clientX;
+      }
+    };
+    el.addEventListener('touchstart', onTouchStartCapture, { capture: true, passive: true });
+    el.addEventListener('touchend', onTouchEndCapture, { capture: true, passive: false });
+    return () => {
+      el.removeEventListener('touchstart', onTouchStartCapture, { capture: true } as EventListenerOptions);
+      el.removeEventListener('touchend', onTouchEndCapture, { capture: true } as EventListenerOptions);
+    };
+  }, []);
+
   // —— 换集：仅切换 HLS 源，不重建播放器（保留网页全屏等状态） ——
   const firstUrlRef = useRef(true);
   useEffect(() => {
@@ -522,6 +626,32 @@ export function PlayerShell({
         <div className="absolute bottom-16 right-3 text-[10px] text-muted bg-black/50 px-2 py-0.5 rounded pointer-events-none">
           自动连播已开启
         </div>
+      )}
+      {showSkipIntro && !error && (
+        <button
+          className="absolute bottom-24 right-3 z-10 bg-white/95 text-black text-sm font-medium px-4 py-2 rounded-full shadow-lg active:scale-95 transition"
+          onClick={() => {
+            const v = artRef.current?.video as HTMLVideoElement | undefined;
+            const sec = propsRef.current.skipIntroSeconds ?? 90;
+            if (v && Number.isFinite(v.duration)) {
+              v.currentTime = Math.min(sec, Math.max(0, v.duration - 5));
+            }
+            introDoneRef.current = true;
+            skipShownRef.current = false;
+            setShowSkipIntro(false);
+            showHint('已跳过片头');
+          }}
+        >
+          跳过片头 ›
+        </button>
+      )}
+      {showNextEp && !error && (
+        <button
+          className="absolute bottom-24 right-3 z-10 bg-white/95 text-black text-sm font-medium px-4 py-2 rounded-full shadow-lg active:scale-95 transition"
+          onClick={() => propsRef.current.onRequestNext?.()}
+        >
+          下一集 ›
+        </button>
       )}
     </div>
   );

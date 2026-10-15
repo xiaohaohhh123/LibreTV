@@ -11,7 +11,7 @@ export default function AboutPage() {
         <section>
           <h1 className="text-xl font-bold text-content mb-3">关于 LibreTV</h1>
           <p className="text-sm text-muted leading-relaxed">
-            LibreTV 是一个免费的在线视频搜索与观看平台。输入片名即可在多个点播源中聚合搜索，
+            小鱼TV 是一个在线视频搜索与观看平台。输入片名即可在多个视频源中搜索，
             无需注册、无内嵌广告、不存储任何视频文件。所有播放内容均来自第三方公开接口。
           </p>
         </section>
@@ -32,14 +32,14 @@ export default function AboutPage() {
           <h2 className="text-base font-semibold text-content mb-2.5">隐私与数据</h2>
           <p className="text-sm text-muted leading-relaxed">
             你的搜索历史、观看进度等数据仅保存在本设备浏览器中（IndexedDB），不会上传到服务器。
-            聚合搜索请求由服务端代理转发，第三方数据源不会看到你的 IP 地址。
+            搜索请求由服务端代理转发，第三方数据源不会看到你的 IP 地址。
           </p>
         </section>
 
         <section>
           <h2 className="text-base font-semibold text-content mb-2.5">免责声明</h2>
           <p className="text-sm text-faint leading-relaxed">
-            本项目不存储、不制作任何视频内容，仅提供第三方公开接口的聚合与播放能力。
+            本项目不存储、不制作任何视频内容，仅提供第三方公开接口的搜索与播放能力。
             请尊重版权，所有内容的合法性由对应数据源负责。
           </p>
         </section>

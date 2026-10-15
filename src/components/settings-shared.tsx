@@ -81,6 +81,51 @@ export function ToggleRow({
   );
 }
 
+export function NumberRow({
+  label,
+  description,
+  value,
+  onChange,
+  min = 0,
+  max = 600,
+  step = 5,
+  unit = '秒',
+}: {
+  label: string;
+  description: string;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-0.5">
+      <div className="min-w-0">
+        <div className="text-sm text-content">{label}</div>
+        <div className="text-xs text-faint">{description}</div>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <input
+          type="number"
+          aria-label={label}
+          className="w-20 rounded-lg bg-chip px-2.5 py-1.5 text-sm text-content text-right ring-1 ring-inset ring-line focus:outline-none focus:ring-accent/50"
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          onChange={(e) => {
+            const v = Math.round(Number(e.target.value));
+            if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, v)));
+          }}
+        />
+        <span className="text-xs text-faint w-6">{unit}</span>
+      </div>
+    </div>
+  );
+}
+
 /** 开关本体：设置项与列表行（如订阅启停）共用，保证尺寸与动效一致 */
 export function Switch({
   checked,
