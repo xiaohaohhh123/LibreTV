@@ -582,6 +582,50 @@ export function PlayerShell({
     };
   }, []);
 
+  // —— 桌面端双击快进 / 快退 10 秒（对标腾讯视频网页端） ——
+  // 拦截第二次 click，阻止 ArtPlayer 的单击暂停逻辑；与移动端触摸双击互补
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    let lastClickAt = 0;
+    let lastClickX = 0;
+    let wasPlayingBeforeFirstClick = false;
+    const onClickCapture = (e: MouseEvent) => {
+      // 触摸设备由触摸处理器接管；控制栏/按钮不拦截
+      if (e.detail === 0) return; // 键盘触发的 click
+      if ((e.target as HTMLElement).closest?.('.art-controls, .art-settings, button')) return;
+      const rect = el.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const w = rect.width;
+      const inLeft = x < w * 0.4;
+      const inRight = x > w * 0.6;
+      if (!inLeft && !inRight) { lastClickAt = 0; return; }
+      const v = artRef.current?.video as HTMLVideoElement | undefined;
+      const now = Date.now();
+      if (now - lastClickAt < 400 && Math.abs(e.clientX - lastClickX) < 80) {
+        lastClickAt = 0;
+        e.preventDefault();
+        e.stopPropagation();
+        if (v && Number.isFinite(v.duration)) {
+          const delta = inLeft ? -10 : 10;
+          v.currentTime = Math.min(Math.max(0, v.currentTime + delta), v.duration);
+          showHint(inLeft ? '快退 10 秒' : '快进 10 秒');
+          // 第一次单击已触发暂停/播放切换，这里恢复原状态
+          if (wasPlayingBeforeFirstClick && v.paused) v.play().catch(() => {});
+          else if (!wasPlayingBeforeFirstClick && !v.paused) v.pause();
+        }
+      } else {
+        lastClickAt = now;
+        lastClickX = e.clientX;
+        wasPlayingBeforeFirstClick = v ? !v.paused : false;
+      }
+    };
+    el.addEventListener('click', onClickCapture, { capture: true });
+    return () => {
+      el.removeEventListener('click', onClickCapture, { capture: true } as EventListenerOptions);
+    };
+  }, []);
+
   // —— 换集：仅切换 HLS 源，不重建播放器（保留网页全屏等状态） ——
   const firstUrlRef = useRef(true);
   useEffect(() => {

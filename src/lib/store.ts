@@ -793,6 +793,8 @@ export const useAppStore = create<AppState>()(
         recommendSource: s.recommendSource,
         recommendSourceTouched: s.recommendSourceTouched,
         autoplayNext: s.autoplayNext,
+        skipIntroSeconds: s.skipIntroSeconds,
+        outroNextSeconds: s.outroNextSeconds,
         imageProxyMode: s.imageProxyMode,
         imageProxyModeTouched: s.imageProxyModeTouched,
         customImageProxy: s.customImageProxy,
