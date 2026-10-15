@@ -10,6 +10,7 @@ import { requestShowDownloadManager } from './download-manager';
 import { Icon } from './icon';
 import { SearchHistoryDropdown, useSearchHistory } from './search-history';
 import { cn } from '@/lib/utils';
+import { BrandLogo } from './brand-logo';
 
 /** 顶部导航：Logo、搜索框（首页外）、历史、设置 */
 export function Header({ showSearch = false }: { showSearch?: boolean }) {
@@ -39,9 +40,12 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
     <>
       <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur border-b border-line">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
-          <Link href="/" aria-label="小鱼TV 首页" className="flex items-center shrink-0">
+          <Link href="/" aria-label="小鱼TV 首页" className="flex items-center shrink-0 gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/icons/icon-512.png" alt="小鱼TV" className="w-7 h-7 rounded-lg" />
+            <span className="hidden md:inline text-lg">
+              <BrandLogo />
+            </span>
           </Link>
 
           {showSearch && (

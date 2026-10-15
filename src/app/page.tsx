@@ -16,6 +16,7 @@ import { useToast } from '@/components/toast';
 import { EmptyState } from '@/components/states';
 import { Icon } from '@/components/icon';
 import { SiteFooter } from '@/components/site-footer';
+import { BrandLogo } from '@/components/brand-logo';
 
 /**
  * 首页：搜索（URL ?s= 驱动，可后退/分享）+ 豆瓣推荐。
@@ -184,7 +185,9 @@ function HomeContent() {
         <section className={cn('flex flex-col items-center', urlQuery ? 'mb-6' : 'mt-8 mb-8')}>
           {!urlQuery && (
             <header className="text-center mb-6">
-              <h1 className="text-4xl sm:text-5xl font-bold brand-gradient">小鱼TV</h1>
+              <h1 className="text-4xl sm:text-5xl">
+                <BrandLogo />
+              </h1>
             </header>
           )}
           {urlQuery && <h1 className="sr-only">小鱼TV 视频搜索</h1>}

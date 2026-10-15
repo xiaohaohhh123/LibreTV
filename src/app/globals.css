@@ -142,6 +142,85 @@ body {
   color: transparent;
 }
 
+/* 小鱼TV 动态 Logo：游动的小鱼 + 流光文字 + 上浮气泡 */
+.brand-logo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: inherit;
+  user-select: none;
+}
+
+.brand-fish {
+  width: 1.6em;
+  height: 1.05em;
+  overflow: visible;
+  animation: brand-swim 3.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px rgba(0, 204, 255, 0.35));
+}
+
+.brand-fish-tail {
+  transform-origin: 88px 40px;
+  animation: brand-tail 0.9s ease-in-out infinite;
+}
+
+.brand-word {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: linear-gradient(100deg, #00ccff 10%, #7dd3fc 30%, #ff3c78 55%, #00ccff 80%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: brand-shimmer 4.5s linear infinite;
+}
+
+.brand-bubble {
+  position: absolute;
+  bottom: 8%;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(0, 204, 255, 0.5);
+  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.5), transparent 60%);
+  opacity: 0;
+  animation: brand-bubble-rise 3.6s ease-in infinite;
+}
+
+.brand-bubble-1 { left: 6%; width: 8px; height: 8px; animation-delay: 0s; }
+.brand-bubble-2 { left: 16%; width: 5px; height: 5px; animation-delay: 1.2s; }
+.brand-bubble-3 { left: 2%; width: 6px; height: 6px; animation-delay: 2.3s; }
+
+@keyframes brand-swim {
+  0%, 100% { transform: translate(0, 0) rotate(-4deg); }
+  50% { transform: translate(6px, -7px) rotate(5deg); }
+}
+
+@keyframes brand-tail {
+  0%, 100% { transform: rotate(-14deg); }
+  50% { transform: rotate(14deg); }
+}
+
+@keyframes brand-shimmer {
+  0% { background-position: 0% 0; }
+  100% { background-position: -220% 0; }
+}
+
+@keyframes brand-bubble-rise {
+  0% { transform: translateY(0) scale(0.7); opacity: 0; }
+  25% { opacity: 0.8; }
+  100% { transform: translateY(-46px) scale(1.05); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-fish,
+  .brand-fish-tail,
+  .brand-word,
+  .brand-bubble {
+    animation: none;
+  }
+}
+
 /* LIVE 呼吸红点（直播页标识） */
 .live-dot {
   width: 8px;

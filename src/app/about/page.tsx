@@ -9,7 +9,7 @@ export default function AboutPage() {
       <Header />
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-10 space-y-8">
         <section>
-          <h1 className="text-xl font-bold text-content mb-3">关于 LibreTV</h1>
+          <h1 className="text-xl font-bold text-content mb-3">关于小鱼TV</h1>
           <p className="text-sm text-muted leading-relaxed">
             小鱼TV 是一个在线视频搜索与观看平台。输入片名即可在多个视频源中搜索，
             无需注册、无内嵌广告、不存储任何视频文件。所有播放内容均来自第三方公开接口。

@@ -6,6 +6,7 @@ import { api, onUnauthorized, STATUS_QUERY_KEY } from '@/lib/client-api';
 import { applyEnvPresets } from '@/lib/subscription-sync';
 import type { AuthStatusResponse } from '@/lib/types';
 import { useToast } from './toast';
+import { BrandLogo } from './brand-logo';
 
 /**
  * 认证上下文：
@@ -194,8 +195,11 @@ function LoginModal({
           </>
         ) : (
           <>
-            <h2 className="text-lg font-semibold text-content mb-1">访问验证</h2>
-            <p className="text-sm text-muted mb-4">请输入密码继续访问</p>
+            <div className="flex justify-center mb-3 text-2xl">
+              <BrandLogo />
+            </div>
+            <h2 className="text-lg font-semibold text-content mb-1 text-center">访问验证</h2>
+            <p className="text-sm text-muted mb-4 text-center">请输入密码继续访问</p>
             <form
               onSubmit={(e) => {
                 e.preventDefault();

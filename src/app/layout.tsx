@@ -5,7 +5,7 @@ import { Providers } from '@/components/providers';
 export const metadata: Metadata = {
   title: {
     default: '小鱼TV - 在线视频搜索与观看',
-    template: '%s - LibreTV',
+    template: '%s - 小鱼TV',
   },
   description:
     '小鱼TV 是一个在线视频搜索平台，无广告、安全，提供来自多个视频源的内容搜索与观看服务，无需注册即可使用。',
