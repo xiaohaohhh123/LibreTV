@@ -85,10 +85,10 @@ export function KonamiFishEasterEgg() {
 
   useEffect(() => {
     const sequence = [
-      'ArrowUp', 'ArrowUp',
-      'ArrowDown', 'ArrowDown',
-      'ArrowLeft', 'ArrowRight',
-      'ArrowLeft', 'ArrowRight',
+      'arrowup', 'arrowup',
+      'arrowdown', 'arrowdown',
+      'arrowleft', 'arrowright',
+      'arrowleft', 'arrowright',
       'b', 'a',
     ];
     let idx = 0;
