@@ -31,6 +31,7 @@ import {
 } from '@/lib/db';
 import { cn } from '@/lib/utils';
 import { LateNightReminder } from '@/components/late-night-reminder';
+import { ViewingCare } from '@/components/viewing-care';
 
 /**
  * 播放页（唯一入口，替代旧版 watch.html → player.html 跳转链）。
@@ -42,8 +43,16 @@ export default function WatchPage() {
     <Suspense>
       <WatchContent />
       <LateNightReminder />
+      <ViewingCareWrapper />
     </Suspense>
   );
+}
+
+/** 从 URL 参数读取当前集数，传给 ViewingCare */
+function ViewingCareWrapper() {
+  const searchParams = useSearchParams();
+  const episodeIndex = parseInt(searchParams.get('ep') || '0', 10);
+  return <ViewingCare episodeIndex={episodeIndex} />;
 }
 
 function WatchContent() {
