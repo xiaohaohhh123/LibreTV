@@ -3,6 +3,7 @@ import { Noto_Sans_SC, Noto_Serif_SC } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { LoveLetterEasterEgg, KonamiFishEasterEgg } from '@/components/xiaoyu-easter-eggs';
+import { WelcomeAnimation } from '@/components/welcome-animation';
 
 /** 正文/界面字体：Noto Sans SC，圆润现代 */
 const notoSansSC = Noto_Sans_SC({
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Providers>
+          <WelcomeAnimation />
           {children}
           <LoveLetterEasterEgg />
           <KonamiFishEasterEgg />
