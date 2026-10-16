@@ -189,6 +189,31 @@ export function PlayerShell({
 
     hls.on(Hls.Events.MANIFEST_PARSED, async () => {
       recoveryRef.current?.markHealthy();
+      // 画质选择器：多码率时在设置面板加「画质」选项，慢网络可手动降画质
+      try {
+        const levels = hls.levels || [];
+        if (levels.length > 1) {
+          const art = artRef.current;
+          // 先移除旧的画质设置（换集时重建）
+          try { art?.setting.remove('画质'); } catch { /* 忽略 */ }
+          const selector = [
+            { html: '自动', value: -1, default: true },
+            ...levels.map((l, i) => ({
+              html: l.height ? `${l.height}P` : `线路${i + 1}`,
+              value: i,
+            })),
+          ];
+          art?.setting.add({
+            html: '画质',
+            selector,
+            onSelect: (item: { value: number; html: string }) => {
+              hls.currentLevel = item.value;
+              showHint(item.value === -1 ? '已切换为自动画质' : `已切换画质`);
+              return item.html;
+            },
+          });
+        }
+      } catch { /* 画质选择器失败不影响播放 */ }
       // 预取锚点：恢复进度时直接取恢复目标。赋值后 video.currentTime 未必立刻反映
       // （Safari 系），而 ensure 是以「锚点未变」为前提复用 parsing 中的运行的——
       // 这里读到旧值会把窗口建在片头，且白等一次纠错重建。
@@ -387,12 +412,12 @@ export function PlayerShell({
     art.on('video:waiting', () => {
       // 卡顿：预取临时让出带宽给播放
       getVideoPrefetcher().setThrottled(true);
-      // 卡顿检测：连续缓冲超过 8 秒，提示用户换源
+      // 卡顿检测：连续缓冲超过 12 秒，提示用户换源
       if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
       stallTimerRef.current = setTimeout(() => {
         stallTimerRef.current = null;
         propsRef.current.onRequestSwitchSource?.('当前线路缓冲较慢，换个线路试试');
-      }, 8000);
+      }, 12000);
     });
     art.on('video:playing', () => {
       getVideoPrefetcher().setThrottled(false);
