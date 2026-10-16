@@ -56,10 +56,10 @@ export function LoveLetterEasterEgg() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 text-4xl">💌</div>
-        <h2 className="mb-4 bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-2xl font-bold text-transparent">
+        <h2 className="font-display mb-4 bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-2xl font-bold text-transparent tracking-widest">
           {LOVE_LETTER.title}
         </h2>
-        <div className="space-y-1 text-sm leading-relaxed text-gray-200">
+        <div className="space-y-1.5 text-sm leading-loose text-gray-200 tracking-wide">
           {LOVE_LETTER.body.map((line, i) => (
             <p key={i} className={line === '' ? 'h-2' : ''}>
               {line}

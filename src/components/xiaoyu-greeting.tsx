@@ -12,10 +12,10 @@ export function XiaoyuGreeting() {
 
   return (
     <div className="mb-6 text-center">
-      <h1 className="bg-gradient-to-r from-cyan-400 via-pink-400 to-purple-400 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl">
+      <h1 className="font-display bg-gradient-to-r from-cyan-400 via-pink-400 to-purple-400 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl drop-shadow-sm">
         {greeting.title}
       </h1>
-      <p className="mt-2 text-sm text-gray-400">{greeting.subtitle}</p>
+      <p className="mt-2 text-sm text-gray-400 tracking-wide">{greeting.subtitle}</p>
     </div>
   );
 }

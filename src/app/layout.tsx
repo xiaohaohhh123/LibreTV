@@ -1,7 +1,24 @@
 import type { Metadata, Viewport } from 'next';
+import { Noto_Sans_SC, Noto_Serif_SC } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { LoveLetterEasterEgg, KonamiFishEasterEgg } from '@/components/xiaoyu-easter-eggs';
+
+/** 正文/界面字体：Noto Sans SC，圆润现代 */
+const notoSansSC = Noto_Sans_SC({
+  subsets: ['latin'],
+  weight: ['400', '500', '700', '900'],
+  display: 'swap',
+  variable: '--font-sans-sc',
+});
+
+/** 标题/问候语字体：Noto Serif SC，优雅有质感 */
+const notoSerifSC = Noto_Serif_SC({
+  subsets: ['latin'],
+  weight: ['600', '700', '900'],
+  display: 'swap',
+  variable: '--font-serif-sc',
+});
 
 export const metadata: Metadata = {
   title: {
@@ -32,7 +49,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="zh-CN" suppressHydrationWarning className={`${notoSansSC.variable} ${notoSerifSC.variable}`}>
       <head>
         {/* 首屏前同步主题，避免亮暗闪烁 */}
         <script
