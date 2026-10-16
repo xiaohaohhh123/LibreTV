@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Providers } from '@/components/providers';
+import { LoveLetterEasterEgg, KonamiFishEasterEgg } from '@/components/xiaoyu-easter-eggs';
 
 export const metadata: Metadata = {
   title: {
@@ -42,7 +43,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <LoveLetterEasterEgg />
+          <KonamiFishEasterEgg />
+        </Providers>
       </body>
     </html>
   );

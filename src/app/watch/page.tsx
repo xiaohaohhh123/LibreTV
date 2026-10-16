@@ -30,6 +30,7 @@ import {
   db,
 } from '@/lib/db';
 import { cn } from '@/lib/utils';
+import { LateNightReminder } from '@/components/late-night-reminder';
 
 /**
  * 播放页（唯一入口，替代旧版 watch.html → player.html 跳转链）。
@@ -40,6 +41,7 @@ export default function WatchPage() {
   return (
     <Suspense>
       <WatchContent />
+      <LateNightReminder />
     </Suspense>
   );
 }

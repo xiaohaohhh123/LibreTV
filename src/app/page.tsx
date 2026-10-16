@@ -17,6 +17,8 @@ import { EmptyState } from '@/components/states';
 import { Icon } from '@/components/icon';
 import { SiteFooter } from '@/components/site-footer';
 import { BrandLogo } from '@/components/brand-logo';
+import { XIAOYU_SEARCH_EASTER_EGG } from '@/lib/xiaoyu-caring';
+import { XiaoyuGreeting } from '@/components/xiaoyu-greeting';
 
 /**
  * 首页：搜索（URL ?s= 驱动，可后退/分享）+ 豆瓣推荐。
@@ -127,6 +129,11 @@ function HomeContent() {
       inputRef.current?.focus();
       return;
     }
+    // 彩蛋：搜索"小鱼"
+    if (query === '小鱼') {
+      toast(XIAOYU_SEARCH_EASTER_EGG, 'info');
+      return;
+    }
     if (selectedSources.length === 0) {
       toast('请先在设置中添加并勾选点播源', 'warning');
       return;
@@ -188,6 +195,7 @@ function HomeContent() {
               <h1 className="text-4xl sm:text-5xl">
                 <BrandLogo />
               </h1>
+              <XiaoyuGreeting />
             </header>
           )}
           {urlQuery && <h1 className="sr-only">小鱼TV 视频搜索</h1>}
