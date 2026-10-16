@@ -56,19 +56,19 @@ export function getBufferingCare(): string {
   return BUFFERING_CARE[Math.floor(Math.random() * BUFFERING_CARE.length)];
 }
 
-/** 连点 Logo 5 次触发的表白弹窗文案 */
+/** 连点 Logo 5 次触发的暖心弹窗文案 */
 export const LOVE_LETTER = {
-  title: '给小鱼的一封信',
+  title: '小鱼专属小窝',
   body: [
     '这个网站是为你做的。',
     '',
-    '从第一行代码到每一处细节，',
-    '都藏着想让你开心一点的心思。',
-    '',
     '追剧的时候记得喝水，',
-    '熬夜的时候记得想我。',
+    '看累了就起来走走，',
+    '熬夜对皮肤不好哦。',
     '',
-    '—— 爱你的小皓',
+    '希望这里能让你开心一点。',
+    '',
+    '—— 小皓',
   ],
 };
 
