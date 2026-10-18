@@ -172,7 +172,7 @@ function HomeContent() {
   useEffect(() => setVisibleCount(RESULT_PAGE_SIZE), [groups]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="dream-home min-h-screen flex flex-col">
       <Header />
 
       <main className="relative flex-1 max-w-6xl w-full mx-auto px-4 py-6">
@@ -180,11 +180,7 @@ function HomeContent() {
         {!urlQuery && (
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-[420px] -z-10"
-            style={{
-              background:
-                'radial-gradient(60% 60% at 50% 0%, rgba(35,173,229,0.10) 0%, rgba(35,173,229,0.03) 45%, transparent 75%)',
-            }}
+            className="dream-aurora"
           />
         )}
 

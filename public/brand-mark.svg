@@ -1,8 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80" fill="none">
-  <!-- Original Xiaoyu fish paths retained; soft blue-purple-pink brand gradient. -->
-  <defs><linearGradient id="xiaoyu-color" x1="12" y1="20" x2="112" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#83b8f5"/><stop offset=".52" stop-color="#b7a3f4"/><stop offset="1" stop-color="#efa8c9"/></linearGradient></defs>
-  <path d="M12 40 C 28 18, 62 14, 88 32 C 96 38, 96 42, 88 48 C 62 66, 28 62, 12 40 Z" fill="url(#xiaoyu-color)"/>
-  <path d="M88 32 L 112 20 L 104 40 L 112 60 L 88 48 Z" fill="url(#xiaoyu-color)"/>
+  <!-- Original Xiaoyu fish paths; play cutout reuses the existing video-card play icon. -->
+  <style>.fish-tail{transform-origin:88px 40px;animation:tail 1.4s ease-in-out infinite}@keyframes tail{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}@media(prefers-reduced-motion:reduce){.fish-tail{animation:none}}</style>
+  <defs>
+    <linearGradient id="xiaoyu-color" x1="12" y1="20" x2="112" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#39c7fa"/><stop offset=".52" stop-color="#a8a5fb"/><stop offset="1" stop-color="#ee91c8"/></linearGradient>
+    <mask id="xiaoyu-play"><rect width="120" height="80" fill="#fff"/><path d="M8 5v14l11-7z" transform="translate(44 24) scale(1.35)" fill="#000"/></mask>
+  </defs>
+  <path d="M12 40 C 28 18, 62 14, 88 32 C 96 38, 96 42, 88 48 C 62 66, 28 62, 12 40 Z" fill="url(#xiaoyu-color)" mask="url(#xiaoyu-play)"/>
+  <path class="fish-tail" d="M88 32 L 112 20 L 104 40 L 112 60 L 88 48 Z" fill="url(#xiaoyu-color)"/>
   <circle cx="30" cy="34" r="5" fill="#28213e"/>
   <circle cx="31.5" cy="32.5" r="1.8" fill="#fff"/>
 </svg>

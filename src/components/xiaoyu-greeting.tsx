@@ -1,10 +1,13 @@
-/** 首页只负责选片，持续的关怀留在播放页。 */
+import { BrandLogo } from './brand-logo';
+
+/** 首页保留原版品牌氛围，持续关怀仍在播放页。 */
 export function XiaoyuGreeting() {
   return (
     <div>
-      <p className="room-label">小鱼的私人放映室</p>
-      <h1 className="room-title">把今天，<span>留给一部好剧。</span></h1>
-      <p className="room-subtitle">不赶进度，找到喜欢的故事就好。</p>
+      <p className="room-label">小鱼的专属放映室</p>
+      <h1 className="room-title" aria-label="小鱼TV"><BrandLogo className="brand-logo-hero" /></h1>
+      <p className="room-dream-title">把喜欢的故事，慢慢看。</p>
+      <p className="room-subtitle">一点小开心，一场好故事。</p>
     </div>
   );
 }

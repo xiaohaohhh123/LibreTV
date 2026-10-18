@@ -13,7 +13,7 @@ export function WelcomeAnimation() {
   return (
     <div className="welcome-note" role="status">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <span className="brand-emblem"><img src="/brand-mark.svg" width="32" height="24" alt="" /></span>
+      <span className="welcome-fish"><img src="/brand-mark.svg" width="44" height="32" alt="" /></span>
       <div><strong>欢迎回来，小鱼</strong><p>你的放映室，开场了。</p></div>
       <button className="care-icon" aria-label="关闭欢迎" onClick={() => setVisible(false)}><Icon name="close" /></button>
     </div>

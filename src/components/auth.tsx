@@ -174,13 +174,13 @@ function LoginModal({
 
   return (
     <div
-      className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 animate-fade-in"
+      className="dream-access-overlay fixed inset-0 z-[95] flex items-center justify-center bg-black/80 animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="bg-surface-raised rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl"
+        className="dream-access-card bg-surface-raised rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-label={setupRequired ? '需要配置密码' : '访问验证'}

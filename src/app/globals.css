@@ -37,13 +37,13 @@
 
 .dark {
   /* 旧版 LibreTV（backup-2025）赛博影视主题（整体调深一档）：深蓝黑底 + 霓虹蓝/粉点缀 */
-  --c-page: 13 20 28;
-  --c-surface: 22 32 43;
-  --c-surface-raised: 22 32 43;
+  --c-page: 14 17 32;
+  --c-surface: 25 29 49;
+  --c-surface-raised: 25 29 49;
   --c-card: 13 20 31;              /* #0d141f 卡片底色 */
   --c-chip: 22 32 46;              /* #16202e 卡片/输入框底色 */
   --c-hover: 29 42 61;             /* #1d2a3d 悬停态（chip 提亮） */
-  --c-line: 34 48 69;              /* #223045 边框（近似旧版 rgba(0,204,255,.15) 观感） */
+  --c-line: 48 53 79;              /* #223045 边框（近似旧版 rgba(0,204,255,.15) 观感） */
   --c-content: 236 239 237;
   --c-muted: 160 173 183;
   --c-faint: 144 158 172;
@@ -177,13 +177,18 @@ h1, h2, .heading-spaced {
   color: transparent;
 }
 
-/* 蓝紫粉只作为品牌点缀，字标保持清晰，不循环闪动。 */
-.brand-logo { display: inline-flex; align-items: center; gap: 10px; user-select: none; }
-.brand-emblem { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 42px; height: 42px; border: 1px solid rgb(var(--c-accent) / .22); border-radius: 14px; background: #25253b; }
-.brand-lockup { display: flex; flex-direction: column; gap: 5px; }
-.brand-word { display: flex; align-items: center; gap: 6px; font-size: 23px; font-weight: 700; line-height: 1; letter-spacing: .03em; color: rgb(var(--c-content)); }
-.brand-tv { font-size: 10px; font-weight: 700; letter-spacing: .08em; color: rgb(var(--c-accent)); align-self: flex-start; margin-top: 2px; }
-.brand-caption { font-size: 7px; line-height: 1; letter-spacing: .18em; font-weight: 500; color: rgb(var(--c-muted)); }
+/* 原版梦幻品牌：鱼、渐变字与气泡，不使用英文方形字标。 */
+.brand-logo { position: relative; display: inline-flex; align-items: center; gap: 5px; user-select: none; }
+.brand-fish-wrap { position: relative; display: inline-flex; flex: none; align-items: center; }
+.brand-fish { width: 48px; height: 32px; overflow: visible; animation: dream-fish-swim 5s ease-in-out infinite; filter: drop-shadow(0 0 9px #67c8ff55); }
+.brand-word { display: inline-block; font-size: 23px; font-weight: 800; line-height: 1.2; letter-spacing: .025em; background: linear-gradient(105deg,#34c7fa 8%,#90c9ff 34%,#bc9de9 66%,#ef97c8 94%); background-clip: text; -webkit-background-clip: text; color: transparent; }
+.brand-bubble { position: absolute; bottom: 28%; pointer-events: none; border: 1px solid #97d3fa77; border-radius: 50%; opacity: 0; animation: dream-bubbles 5s ease-out infinite; }
+.brand-bubble-1 { left: 4%; width: 5px; height: 5px; }
+.brand-bubble-2 { left: 15%; width: 3px; height: 3px; animation-delay: 1.8s; }
+.brand-bubble-3 { left: 1%; width: 4px; height: 4px; animation-delay: 3.4s; }
+@keyframes dream-fish-swim { 0%,100% { transform:translateY(0) rotate(-3deg); } 50% { transform:translateY(-4px) rotate(3deg); } }
+@keyframes dream-shimmer { from { background-position:0 50%; } to { background-position:100% 50%; } }
+@keyframes dream-bubbles { 0% { transform:translateY(0) scale(.6); opacity:0; } 25% { opacity:.65; } 100% { transform:translateY(-38px) scale(1); opacity:0; } }
 /* LIVE 呼吸红点（直播页标识） */
 .live-dot {
   width: 8px;
@@ -306,10 +311,8 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .cinema-episode-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; overflow-y: auto; max-height: min(50vh, 350px); margin-top: 16px; }
 .cinema-panel-open .art-bottom { opacity: 1 !important; visibility: visible !important; transform: none !important; }
 @media (max-width: 639px) {
- .brand-logo { gap: 8px; }
- .brand-emblem { width: 36px; height: 36px; border-radius: 12px; }
- .brand-word { font-size: 21px; }
- .brand-caption { font-size: 6px; }
+ .site-header .brand-fish { width: 38px; height: 28px; }
+ .site-header .brand-word { font-size: 21px; }
  .cinema-shell .art-bottom { padding: 20px 8px 2px; }
  .cinema-shell .art-video-player { --art-control-height: 36px; }
  .cinema-shell .art-video-player .art-controls .art-control { min-width: 36px; padding-inline: 0; }
@@ -335,4 +338,49 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 }
 @media (max-height: 500px) and (orientation: landscape) {
  .cinema-episode-options { max-height: 110px; }
+}
+
+/* 梦幻版以原品牌为准，氛围留在页面，电影画面保持原样。 */
+.dream-home { background: radial-gradient(ellipse 90% 480px at 50% 0%, rgb(166 152 235 / .035), transparent); }
+.dream-home main { isolation: isolate; }
+.dream-aurora { position: absolute; pointer-events: none; inset: -70px 0 auto; height: 670px; z-index: -1; background: radial-gradient(ellipse 36% 38% at 20% 18%, #62bfff20, transparent 100%), radial-gradient(ellipse 35% 38% at 78% 18%, #ef94cd20, transparent 100%), radial-gradient(ellipse 56% 48% at 50% 35%, #9985f624, transparent 100%); mask-image: linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent); }
+.home-intro { padding: 40px 0 38px; margin-bottom: 20px; border-bottom: 1px solid rgb(var(--c-line) / .7); }
+.room-label { margin-bottom: 15px; color: rgb(var(--c-muted)); letter-spacing: .22em; font-size: 11px; }
+.brand-logo-hero { gap: 10px; }
+.brand-logo-hero .brand-fish { width: 94px; height: 64px; filter: drop-shadow(0 0 20px #63c9f86b); }
+.brand-logo-hero .brand-word { font-size: clamp(44px, 5vw, 62px); font-weight: 900; letter-spacing: .02em; }
+.brand-logo-hero .brand-bubble-1 { width: 8px; height: 8px; }
+.brand-logo-hero .brand-bubble-2 { width: 5px; height: 5px; }
+.brand-logo-hero .brand-bubble-3 { width: 6px; height: 6px; }
+.room-dream-title { margin-top: 13px; font-family: var(--font-serif-sc), 'Songti SC', serif; font-size: clamp(22px, 2.5vw, 32px); font-weight: 600; line-height: 1.6; letter-spacing: .07em; background: linear-gradient(100deg,#82c7ee,#c1b0ee 50%,#e9b0d2); background-clip: text; -webkit-background-clip: text; color: transparent; }
+.room-subtitle { margin-top: 6px; font-size: 13px; color: rgb(var(--c-muted)); letter-spacing: .07em; }
+.home-search form > div { min-height: 58px; border-radius: 22px; border-color: rgb(173 164 235 / .3); background: linear-gradient(125deg, rgb(var(--c-surface) / .85), rgb(var(--c-surface-raised) / .92)); box-shadow: 0 12px 46px #6962be13, 0 0 30px #c58ce910; }
+.home-search button[type=submit], .dream-access-card .btn-primary { background: linear-gradient(110deg,#7ccdf5,#b2a5f3 60%,#dea6d5); color: #1d2341; border: 0; font-weight: 600; }
+.home-search button[type=submit]:hover { filter: brightness(1.08); }
+.dream-home .card { background: linear-gradient(150deg,rgb(var(--c-surface) / .6),rgb(var(--c-card) / .9)); border-color: rgb(var(--c-line) / .8); box-shadow: 0 5px 24px #07081912; }
+.dream-home .card:hover { border-color: #aca7e87a; box-shadow: 0 10px 35px #7778d820; }
+.dream-access-overlay { background: radial-gradient(ellipse at 20% 30%,#28417265,transparent 55%),radial-gradient(ellipse at 80% 35%,#66366655,transparent 55%),#090e1cde; backdrop-filter: blur(8px); }
+.dream-access-card { border-radius: 26px; padding: 30px; border: 1px solid #b5a9e63d; background: linear-gradient(145deg,rgb(var(--c-surface-raised)),rgb(var(--c-page))); box-shadow: 0 24px 100px #09071470,0 0 60px #8d85dc18; }
+.dream-access-card .brand-fish { width: 58px; height: 40px; }
+.dream-access-card .brand-word { font-size: 30px; }
+.welcome-note { background: linear-gradient(120deg,rgb(var(--c-surface) / .96),rgb(var(--c-surface-raised) / .96)); border-color: #aaa5df4d; box-shadow: 0 14px 50px #8880cc24; }
+.welcome-note strong { background: linear-gradient(105deg,#74c5ef,#b5a3e9,#e2a3cd); background-clip: text; -webkit-background-clip: text; color: transparent; }
+.welcome-fish { flex: none; filter: drop-shadow(0 0 10px #7cc9f34a); animation: dream-fish-swim 5s ease-in-out infinite; }
+.watch-room { background: radial-gradient(ellipse 65% 240px at 55% 0%,#a28ade0c,transparent); }
+.viewing-care { background: linear-gradient(135deg,rgb(var(--c-surface) / .65),rgb(var(--c-page) / .8)); border-color: #b2a0e328; }
+.friend-note { background: linear-gradient(120deg,#fcf5ed,#fbf0f5); border-color: #e7cddc; color: #574758; box-shadow: 0 6px 25px #b78baa0a; }
+.friend-note-label, .friend-note-signature { color: #8b7284; }
+:root:not(.dark) .room-dream-title { background-image: linear-gradient(100deg,#478faf,#9470b7 50%,#b7739f); }
+:root:not(.dark) .brand-word { background-image: linear-gradient(105deg,#258fb9,#977ac2 55%,#bf75a5); }
+:root:not(.dark) .dream-aurora { opacity: .7; }
+@media (max-width:639px) {
+ .home-intro { padding: 28px 0 28px; }
+ .room-label { margin-bottom: 12px; font-size: 10px; }
+ .brand-logo-hero { gap: 5px; }
+ .brand-logo-hero .brand-fish { width: 68px; height: 48px; }
+ .brand-logo-hero .brand-word { font-size: 45px; }
+ .room-dream-title { margin-top: 10px; font-size: 23px; letter-spacing: .02em; }
+ .room-subtitle { font-size: 12px; }
+ .home-search form > div { min-height: 54px; border-radius: 18px; }
+ .dream-aurora { inset-block-start: -40px; height: 560px; }
 }
