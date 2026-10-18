@@ -53,8 +53,34 @@ export function ViewingCare({ episodeKey }: { episodeKey: string }) {
   );
 }
 
-export function BufferingCare({ show }: { show: boolean }) {
-  const [text, setText] = useState('');
-  useEffect(() => { if (show) setText(getBufferingCare()); }, [show]);
-  return show ? <p className="text-sm text-muted" role="status">{text}</p> : null;
+/** 只填补真实开场等待，不为读完纸条延迟播放。 */
+export function BufferingCare({ show, episodeKey, ready, onPlay }: { show: boolean; episodeKey?: string; ready: boolean; onPlay: () => void }) {
+  const [note, setNote] = useState<ReturnType<typeof getBufferingCare> | null>(null);
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    setNote(null); setSlow(false);
+    if (!show) return;
+    const noteTimer = setTimeout(() => {
+      let previous: string | undefined;
+      try { previous = sessionStorage.getItem('xiaoyu-opening-note') ?? undefined; } catch { /* 不影响播放 */ }
+      const next = getBufferingCare(new Date().getHours(), previous);
+      setNote(next);
+      try { sessionStorage.setItem('xiaoyu-opening-note', next.title); } catch { /* 当前纸条仍可显示 */ }
+    }, 650);
+    const slowTimer = setTimeout(() => setSlow(true), 8000);
+    return () => { clearTimeout(noteTimer); clearTimeout(slowTimer); };
+  }, [show, episodeKey]);
+  if (!show) return null;
+  return <div className="cinema-opening">
+    <div className="cinema-opening-label">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand-mark.svg" width="42" height="28" alt="" />
+      <span>开场前 · 给小鱼的小纸条</span>
+    </div>
+    <div className="cinema-opening-note" aria-live="polite" aria-atomic="true">
+      {note && <><p className="cinema-opening-title">{note.title}</p><p className="cinema-opening-body">{note.body}</p></>}
+    </div>
+    {ready ? <button className="cinema-opening-play" onClick={event => { event.stopPropagation(); onPlay(); }}>开始播放</button>
+      : <p className="cinema-opening-status" role="status"><span className="cinema-opening-dots" aria-hidden="true"><i /><i /><i /></span>{slow ? '准备时间有点长，可以试试「切换资源」。' : '正在准备正片'}</p>}
+  </div>;
 }

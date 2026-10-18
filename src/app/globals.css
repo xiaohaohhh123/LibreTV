@@ -297,6 +297,22 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .cinema-poster { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: radial-gradient(ellipse at 50% 40%, #25253b, #080e12 70%); pointer-events: none; }
 .cinema-poster span { color: #c8d9d4; font-size: 15px; letter-spacing: .12em; }
 .cinema-poster small { color: #8b9f99; font-size: 11px; }
+.cinema-opening { width: min(100%, 620px); padding: 32px 22px 48px; text-align: center; }
+.cinema-shell .art-video-player:has(.cinema-opening) .art-loading { display: none; }
+.cinema-opening-label { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; }
+.cinema-opening-label span { color: #b7b6d3; font-size: 11px; letter-spacing: .12em; }
+.cinema-opening-label img { filter: drop-shadow(0 0 12px #b7a3f435); }
+.cinema-opening-note { min-height: 78px; }
+.cinema-opening-title { color: #ede7fc; font-size: 22px; font-weight: 500; line-height: 1.65; }
+.cinema-opening-body { margin-top: 6px; color: #c0bfd0; font-size: 13px; line-height: 1.7; }
+.cinema-opening-status { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 12px; color: #9da3b6; font-size: 11px; line-height: 1.6; }
+.cinema-opening-dots { display: inline-flex; gap: 3px; }
+.cinema-opening-dots i { width: 3px; height: 3px; border-radius: 50%; background: #b7a3f4; animation: opening-dot 1.5s ease-in-out infinite; }
+.cinema-opening-dots i:nth-child(2) { animation-delay: .2s; }
+.cinema-opening-dots i:nth-child(3) { animation-delay: .4s; }
+.cinema-opening-play { margin-top: 8px; min-height: 44px; padding: 8px 22px; border-radius: 22px; border: 1px solid #b7a3f46b; background: #b7a3f41c; color: #ede7fc; font-size: 13px; }
+@keyframes opening-dot { 0%, 70%, 100% { opacity: .3; } 35% { opacity: 1; } }
+body:has(.watch-room) .welcome-note { top: auto; bottom: 18px; }
 .cinema-panel-dismiss { position: absolute; inset: 0; width: 100%; cursor: default; }
 .cinema-panel { position: absolute; right: 18px; bottom: 76px; width: 290px; max-width: calc(100% - 24px); padding: 18px; background: #191e2d; border: 1px solid #ffffff1f; border-radius: 16px; box-shadow: 0 18px 60px #0006; pointer-events: auto; }
 .cinema-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -326,6 +342,15 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
  .cinema-lock { top: 2px; right: 5px; width: 40px; height: 40px; }
  .cinema-skip { bottom: 70px; right: 12px; padding: 6px 12px; font-size: 11px; min-height: 34px; }
  .cinema-hint { font-size: 11px; padding: 7px 12px; }
+ .cinema-opening { padding: 30px 14px 36px; }
+ .cinema-opening-label { gap: 5px; margin-bottom: 4px; }
+ .cinema-opening-label img { width: 32px; height: 22px; }
+ .cinema-opening-label span { font-size: 9px; letter-spacing: .06em; }
+ .cinema-opening-note { min-height: 46px; }
+ .cinema-opening-title { font-size: 15px; line-height: 1.5; }
+ .cinema-opening-body { margin-top: 3px; font-size: 10px; line-height: 1.6; }
+ .cinema-opening-status { margin-top: 6px; font-size: 9px; }
+ .cinema-opening-play { margin-top: 4px; min-height: 36px; padding: 5px 18px; font-size: 11px; }
  .cinema-panel { bottom: 52px; right: 10px; padding: 10px; border-radius: 12px; max-height: calc(100% - 60px); overflow-y: auto; }
  .cinema-panel-heading strong { font-size: 13px; }
  .cinema-panel-caption { display: none; }
@@ -338,6 +363,12 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 }
 @media (max-height: 500px) and (orientation: landscape) {
  .cinema-episode-options { max-height: 110px; }
+}
+@media (max-width: 360px) {
+ .cinema-opening { padding: 22px 12px 30px; }
+ .cinema-opening-note { min-height: 24px; }
+ .cinema-opening-title { font-size: 14px; }
+ .cinema-opening-body { display: none; }
 }
 
 /* 梦幻版以原品牌为准，氛围留在页面，电影画面保持原样。 */

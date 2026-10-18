@@ -42,14 +42,45 @@ export function getTimeGreeting(): { title: string; subtitle: string } {
   };
 }
 
-/** 缓冲/加载时的随机关心语 */
-const BUFFERING_CARE: string[] = [
-  '正在缓冲，暂时没有新的画面',
-  '正在等待视频数据；长时间无画面可尝试换源',
-];
+/** 开场小纸条只存在本机，不记录她是否吃饭或看过什么。 */
+const BUFFERING_CARE = {
+  breakfast: [
+    { title: '早饭也要有自己的出场时间。', body: '哪怕今天有点赶，也给自己留一顿早餐。' },
+    { title: '给今天一个热乎乎的开场。', body: '早餐慢慢吃，喜欢的节目也慢慢看。' },
+    { title: '小鱼，也给自己充点电。', body: '空着肚子可不行，一份早餐刚刚好。' },
+  ],
+  lunch: [
+    { title: '饭要好好吃，故事可以慢慢看。', body: '先把这一餐吃舒服，再继续喜欢的节目。' },
+    { title: '小鱼，午饭也值得认真对待。', body: '忙了一上午，给自己留一点好好吃饭的时间。' },
+    { title: '午饭时间，别只顾着追更新。', body: '喜欢的节目会等你，饭也趁热吃。' },
+  ],
+  dinner: [
+    { title: '晚饭吃了吗，小鱼？', body: '如果还没有，给自己安排一顿热乎的吧。' },
+    { title: '今天的晚饭，也别将就。', body: '好好吃一餐，再把剩下的时间留给喜欢的节目。' },
+    { title: '追剧可以等，好好吃饭也重要。', body: '给忙了一天的自己留一顿舒服的晚餐。' },
+  ],
+  night: [
+    { title: '夜已经很深，故事还会在。', body: '有困意就先休息，明天可以从这里接着看。' },
+    { title: '不用一次看完所有好故事。', body: '把下一集留给明天，也是一件值得期待的小事。' },
+    { title: '今天辛苦啦，别和困意较劲。', body: '想睡的时候就去睡，喜欢的节目不会跑掉。' },
+  ],
+  anytime: [
+    { title: '等开场的空隙，喝一口水吧。', body: '给自己一点小照顾，然后继续今天的小快乐。' },
+    { title: '肩膀放松一点，坐舒服一点。', body: '忙了一会儿，现在把这点时间留给自己。' },
+    { title: '今天没有很厉害，也没关系。', body: '能给自己留一点喜欢的时间，就很好。' },
+    { title: '看屏幕之前，先看看远处。', body: '让眼睛歇一小会儿，好看的节目马上接着看。' },
+    { title: '给自己一个舒服的位置。', body: '觉得冷的话添件衣服，舒服一点再看。' },
+    { title: '开场前，先把今天的忙放一放。', body: '不用一直赶路，也可以留一点时间放松。' },
+  ],
+};
 
-export function getBufferingCare(): string {
-  return BUFFERING_CARE[Math.floor(Math.random() * BUFFERING_CARE.length)];
+export function getBufferingCare(hour = new Date().getHours(), previousTitle?: string) {
+  const group = hour >= 6 && hour < 10 ? 'breakfast'
+    : hour >= 11 && hour < 14 ? 'lunch'
+    : hour >= 17 && hour < 21 ? 'dinner'
+    : hour >= 23 || hour < 6 ? 'night' : 'anytime';
+  const notes = BUFFERING_CARE[group].filter(note => note.title !== previousTitle);
+  return notes[Math.floor(Math.random() * notes.length)];
 }
 
 /** 连点 Logo 5 次触发的暖心弹窗文案 */
@@ -87,4 +118,10 @@ export const FRIEND_NOTES = [
   '这一集如果很好看，下次见面可以讲给我听。',
   '不用为了追上更新熬夜。好故事不会跑，明天还能接着看。',
   '如果今天有点累，就让这里安静陪你一会儿。',
+  '有时候一天过得太快，连吃饭都忘了。希望你再忙，也能给自己留一顿热乎饭。',
+  '想提醒你一件很小的事：水杯可以放近一点，这一集的空隙记得喝一口。',
+  '喜欢的综艺可以攒着慢慢看，饭也要好好吃。照顾自己和小开心一样重要。',
+  '如果今天过得有点乱，就先做一件小事吧。吃顿饭、洗个热水澡，或者好好睡一觉。',
+  '看得开心的时候，也记得把肩膀放松一点。坐舒服了，快乐才更自在。',
+  '不用为了追完一季把自己熬困。把下一期留给明天，也算预订一份小快乐。',
 ];

@@ -30,7 +30,8 @@ function useUpstreamUpdate(current: string | null): UpstreamUpdate | null {
     }
     // 按当前版本隔离缓存到 sessionStorage：一次会话最多请求一次 GitHub API
     const cacheKey = `upstream-latest-tag:${current}`;
-    const cached = sessionStorage.getItem(cacheKey);
+    let cached: string | null = null;
+    try { cached = sessionStorage.getItem(cacheKey); } catch { /* 隐私模式禁用存储时仍正常显示页面 */ }
     if (cached) {
       setState(
         compareVersions(cached, current) > 0

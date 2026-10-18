@@ -14,6 +14,7 @@ import { loadCacheSettings } from '@/lib/video-cache';
 import { hasPrefetchHeadroom, shouldWarmNextEpisode } from '@/lib/source-recovery-match';
 import { formatTime } from '@/lib/utils';
 import { PlayerChrome } from './player-chrome';
+import { BufferingCare } from './viewing-care';
 
 /**
  * 播放器外壳：ArtPlayer + hls.js（旧版 player.js 的 React 化）。
@@ -82,6 +83,7 @@ export function PlayerShell({
   const [hint, setHint] = useState('');
   // 实际开始播放后隐藏品牌占位，点击仍由原播放器接管。
   const [showPoster, setShowPoster] = useState(true);
+  const [readyToPlay, setReadyToPlay] = useState(false);
   // 跳过片头 / 片尾下一集 悬浮按钮
   const [showSkipIntro, setShowSkipIntro] = useState(false);
   const [showNextEp, setShowNextEp] = useState(false);
@@ -326,6 +328,7 @@ export function PlayerShell({
     if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     setError('');
     setShowPoster(true);
+    setReadyToPlay(false);
     const art = artRef.current;
     if (!art) return;
     setupHls(art.video, targetUrl, true);
@@ -379,6 +382,7 @@ export function PlayerShell({
     artRef.current = art;
     setPlayer(art);
     art.on('video:durationchange', () => { void restorePlaybackPosition(); });
+    art.on('video:canplay', () => setReadyToPlay(true));
     art.on('video:loadedmetadata', () => {
       void restorePlaybackPosition();
       // ArtPlayer 运行时支持 title 选项（类型定义未覆盖），用于界面标题展示
@@ -433,6 +437,7 @@ export function PlayerShell({
       ensurePrefetch(currentMediaUrlRef.current, art.currentTime);
     });
     art.on('video:waiting', () => {
+      if (!playbackStartedRef.current) setReadyToPlay(false);
       // 卡顿：预取临时让出带宽给播放
       getVideoPrefetcher().setThrottled(true);
       getNextEpisodePrefetcher().stop();
@@ -710,10 +715,9 @@ export function PlayerShell({
       {player && <PlayerChrome art={player} title={title} episodeLabel={episodeNames[currentIndex]} episodeNames={episodeNames} currentIndex={currentIndex} onSelectEpisode={onSelectEpisode} onNext={onRequestNext} locked={locked}>
       {showPoster && !error && (
         <div className="cinema-poster">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand-mark.svg" width="64" height="48" alt="" />
-          <span>小鱼的放映室</span>
-          <small>准备好，就开场。</small>
+          <BufferingCare show={showPoster} episodeKey={episodeKey} ready={readyToPlay} onPlay={() => {
+            void player.video.play().catch(() => showHint('暂时无法播放，可以尝试切换资源。'));
+          }} />
         </div>
       )}
       {error && (
