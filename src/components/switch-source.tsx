@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-api';
 import type { SourceConfig, SearchResultItem } from '@/lib/types';
 import { buildWatchUrl, cn } from '@/lib/utils';
-import { useAppStore, resolveSource } from '@/lib/store';
+import { useAppStore, resolveSource, isSourceDisabled, isInDisabledSubscription } from '@/lib/store';
+import { matchesRecoveryProgramme, recoveryEpisodeIndex } from '@/lib/source-recovery-match';
 import { useToast } from './toast';
 import { Icon } from './icon';
 import { SmartImage } from './smart-image';
@@ -23,6 +25,8 @@ interface Candidate {
   ms?: number;
   ok?: boolean;
   episodes?: number;
+  year?: string;
+  episodeNames?: string[];
 }
 
 export function SwitchSourceModal({
@@ -30,12 +34,26 @@ export function SwitchSourceModal({
   currentSourceKey,
   currentVodId,
   currentIndex,
+  getPosition,
+  automatic = false,
+  failedSources = [],
+  currentYear,
+  currentEpisodeCount = 0,
+  currentEpisodeNames,
+  recoveryPosition = 0,
   onClose,
 }: {
   currentTitle: string;
   currentSourceKey: string;
   currentVodId: string;
   currentIndex: number;
+  getPosition?: () => number;
+  automatic?: boolean;
+  failedSources?: string[];
+  currentYear?: string;
+  currentEpisodeCount?: number;
+  currentEpisodeNames?: string[];
+  recoveryPosition?: number;
   onClose: () => void;
 }) {
   const store = useAppStore();
@@ -46,6 +64,7 @@ export function SwitchSourceModal({
   /** 封面加载失败记录（按卡片 key）；失败后降级为占位图标，避免破图 */
   const [imgFailed, setImgFailed] = useState<Record<string, boolean>>({});
   const panelRef = useRef<HTMLDivElement>(null);
+  const automaticAttempted = useRef(false);
 
   // 打开时把焦点移入弹窗、Tab 圈闭在弹窗内、关闭后归还焦点
   useFocusTrap(true, panelRef);
@@ -56,7 +75,7 @@ export function SwitchSourceModal({
     return store.selectedKeys
       .map((key) => resolveSource(store, key))
       .filter((s): s is SourceConfig => {
-        if (!s || seen.has(s.key)) return false;
+        if (!s || s.isAdult || seen.has(s.key) || isSourceDisabled(store, s.key) || isInDisabledSubscription(store, s.key)) return false;
         seen.add(s.key);
         return true;
       });
@@ -113,6 +132,8 @@ export function SwitchSourceModal({
             c.ok = r.ok;
             c.ms = r.ms;
             c.episodes = r.detail?.episodes.length ?? 0;
+            c.year = r.detail?.videoInfo.year;
+            c.episodeNames = r.detail?.episodeNames;
           })
         );
         if (cancelled) return;
@@ -144,14 +165,20 @@ export function SwitchSourceModal({
     return msA - msB;
   });
 
-  const switchTo = (c: Candidate) => {
+  const switchTo = useCallback((c: Candidate, auto = false) => {
     if (!c.episodes) {
       toast('该源无可用播放资源', 'warning');
       return;
     }
-    const targetIndex = currentIndex < c.episodes ? currentIndex : 0;
+    const matchingIndex = recoveryEpisodeIndex(
+      {title: currentTitle, year: currentYear, episodes: currentEpisodeCount, episodeNames: currentEpisodeNames},
+      {title: c.result.name, year: c.year, episodes: c.episodes, episodeNames: c.episodeNames}, currentIndex
+    );
+    if (auto && matchingIndex === null) return;
+    const targetIndex = matchingIndex ?? (currentIndex < c.episodes ? currentIndex : 0);
     onClose(); // 先关闭面板，避免路由参数变化后弹窗残留旧数据
-    router.push(
+    const navigate = auto ? router.replace : router.push;
+    navigate(
       buildWatchUrl({
         sourceKey: c.source.key,
         vodId: c.result.vodId,
@@ -159,11 +186,28 @@ export function SwitchSourceModal({
         title: c.result.name || currentTitle,
         sourceUrl: c.source.url,
         detail: c.source.detail,
+        position: matchingIndex !== null || targetIndex === currentIndex ? Math.max(getPosition?.() ?? 0, auto ? recoveryPosition : 0) : undefined,
       })
     );
-  };
+    if (auto) toast('已尝试另一条同片线路，正在恢复播放', 'info');
+  }, [currentIndex, currentTitle, currentYear, currentEpisodeCount, currentEpisodeNames, getPosition, onClose, recoveryPosition, router, toast]);
 
-  return (
+  useEffect(() => {
+    if (!automatic || phase !== 'done' || automaticAttempted.current) return;
+    automaticAttempted.current = true;
+    // 搜索期间旧线路已经继续播放，就取消换源，避免恢复后仍被强制跳转。
+    if ((getPosition?.() ?? 0) > recoveryPosition + 1) { onClose(); return; }
+    const match = candidates.filter((c) => c.ok && !failedSources.includes(c.source.key) &&
+      matchesRecoveryProgramme(
+        {title: currentTitle, year: currentYear, episodes: currentEpisodeCount, episodeNames: currentEpisodeNames},
+        {title: c.result.name, year: c.year, episodes: c.episodes ?? 0, episodeNames: c.episodeNames}, currentIndex
+      )).sort((a, b) => (a.ms ?? Infinity) - (b.ms ?? Infinity))[0];
+    if (match) switchTo(match, true);
+  }, [automatic, phase, candidates, failedSources, currentTitle, currentYear, currentEpisodeCount, currentEpisodeNames, currentIndex, getPosition, recoveryPosition, onClose, switchTo]);
+
+  if (typeof document === 'undefined') return null;
+  const modalHost = document.fullscreenElement ?? document.querySelector('.art-fullscreen-web') ?? document.body;
+  return createPortal(
     <div
       className="fixed inset-0 z-[65] flex items-start justify-center overflow-y-auto bg-black/80 py-10 px-4 animate-fade-in"
       onClick={(e) => {
@@ -187,9 +231,10 @@ export function SwitchSourceModal({
               {phase === 'searching'
                 ? '正在搜索各资源...'
                 : phase === 'testing'
-                  ? '正在测试各资源速率...'
-                  : `共 ${sorted.length} 个来源 · ${sorted.filter((c) => c.ok).length} 个可用`}
+                  ? '正在检查各来源的剧集信息...'
+                  : `共 ${sorted.length} 个来源 · ${sorted.filter((c) => c.ok).length} 个返回剧集；耗时仅代表详情接口响应`}
             </p>
+            {automatic && <p className="mt-2 text-sm text-muted" role="status">{phase === 'done' ? '暂未确认可自动替换的同片同集线路。你可以手动选择，或稍后重试。' : '当前线路暂时无法继续播放，正在找同一集的替代线路。'}</p>}
           </div>
           <button className="p-1.5 rounded-md text-muted hover:text-content hover:bg-hover" onClick={onClose} aria-label="关闭">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -214,7 +259,7 @@ export function SwitchSourceModal({
                   key={`${c.source.key}_${c.result.vodId}`}
                   className={cn('text-left group relative rounded-lg overflow-hidden bg-card transition-transform', !isCurrent && 'hover:scale-[1.03] cursor-pointer', isCurrent && 'cursor-default')}
                   onClick={() => !isCurrent && switchTo(c)}
-                  disabled={isCurrent}
+                  disabled={isCurrent || !c.ok || !c.episodes}
                 >
                   <div className="relative aspect-[2/3] bg-chip">
                     {img && !coverFailed ? (
@@ -255,6 +300,6 @@ export function SwitchSourceModal({
           </div>
         )}
       </div>
-    </div>
+    </div>, modalHost
   );
 }

@@ -83,7 +83,7 @@ function DoubanView({ onPick }: { onPick: (title: string) => void }) {
       ) : items.length === 0 ? (
         <p className="text-center text-sm text-faint py-8">该分类暂无推荐内容</p>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+        <div className="grid grid-cols-2 min-[460px]:grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-6">
           {items.map((item) => (
             <DoubanCard key={item.id} item={item} onClick={() => onPick(item.title)} />
           ))}
@@ -127,7 +127,7 @@ function BangumiView({ onPick }: { onPick: (title: string) => void }) {
       ) : query.isLoading ? (
         <GridSkeleton />
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+        <div className="grid grid-cols-2 min-[460px]:grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-6">
           {items.map((item) => (
             <DoubanCard key={item.id} item={item} onClick={() => onPick(item.title)} />
           ))}
@@ -159,6 +159,10 @@ function HotListView({ onPick }: { onPick: (title: string) => void }) {
 
   return (
     <section aria-label="影视榜单推荐">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-content">不知道看什么？来逛逛</h2>
+        <span className="hidden sm:block text-xs text-faint">选一部，慢慢看</span>
+      </div>
       <div className="flex flex-wrap gap-1.5 mb-4">
         {HOT_LISTS.map((l) => (
           <ChipButton key={l.id} active={listId === l.id} onClick={() => setListId(l.id)}>
@@ -172,7 +176,7 @@ function HotListView({ onPick }: { onPick: (title: string) => void }) {
       ) : query.isLoading ? (
         <GridSkeleton />
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+        <div className="grid grid-cols-2 min-[460px]:grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-6">
           {items.map((item) => (
             <DoubanCard key={item.id} item={item} onClick={() => onPick(item.title)} />
           ))}
@@ -184,7 +188,7 @@ function HotListView({ onPick }: { onPick: (title: string) => void }) {
 
 function GridSkeleton() {
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+    <div className="grid grid-cols-2 min-[460px]:grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-6">
       {Array.from({ length: 16 }).map((_, i) => (
         <div key={i}>
           <div className="aspect-[2/3] rounded-lg bg-chip animate-pulse" />
@@ -199,10 +203,11 @@ function ChipButton({ active, onClick, children }: { active: boolean; onClick: (
   return (
     <button
       className={cn(
-        'px-2.5 py-1 rounded-full text-xs transition-colors',
+        'px-3 py-2 rounded-lg text-[13px] min-h-10 transition-colors',
         active ? 'bg-accent text-on-accent' : 'bg-chip text-muted hover:text-content hover:bg-hover'
       )}
       onClick={onClick}
+      aria-pressed={active}
     >
       {children}
     </button>

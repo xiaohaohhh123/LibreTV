@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { guardRequest } from '@/lib/api-guard';
-import { cmsRequestHeaders, isAdultContent, parseSearchList } from '@/lib/cms-parser';
+import { cmsRequestHeaders, isAdultContent, parseSearchList, filterAdultResults } from '@/lib/cms-parser';
 import { fetchUpstream } from '@/lib/fetch-utils';
 import { checkUpstreamAllowed } from '@/lib/ssrf';
 import type { SearchResultItem, SourceConfig } from '@/lib/types';
@@ -59,6 +59,7 @@ export async function POST(req: Request) {
   if (!source || !/^https?:\/\//.test(source.url || '')) {
     return NextResponse.json({ ok: false, error: '无效的源地址' } satisfies BrowseResponse, { status: 400 });
   }
+  if (source.isAdult) return NextResponse.json({ ok: false, error: '此来源不在小鱼TV的内容范围内' }, { status: 403 });
   const verdict = await checkUpstreamAllowed(source.url);
   if (!verdict.ok) {
     return NextResponse.json({ ok: false, error: verdict.reason } satisfies BrowseResponse, { status: 400 });
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const list = parseSearchList(data, source).filter((item) => !isAdultContent(item.typeName));
+    const list = filterAdultResults(parseSearchList(data, source), true);
     const rawPageCount = parseInt(String((data as { pagecount?: unknown }).pagecount ?? '1'), 10);
     const pagecount = Number.isFinite(rawPageCount) ? Math.max(1, rawPageCount) : 1;
     return NextResponse.json({ ok: true, list, page: pg, pagecount } satisfies BrowseResponse);

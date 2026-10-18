@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { LOVE_LETTER } from '@/lib/xiaoyu-caring';
 import { cn } from '@/lib/utils';
+import { useFocusTrap } from './use-focus-trap';
 
 /**
  * 小鱼TV 彩蛋：连点 Logo 5 次弹出表白信。
@@ -10,7 +11,15 @@ import { cn } from '@/lib/utils';
  */
 export function LoveLetterEasterEgg() {
   const [show, setShow] = useState(false);
-  const [clickCount, setClickCount] = useState(0);
+  const [, setClickCount] = useState(0);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(show, panelRef);
+  useEffect(() => {
+    if (!show) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setShow(false); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [show]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -46,20 +55,20 @@ export function LoveLetterEasterEgg() {
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={close}
     >
-      <div
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label="给小鱼的一封小信" tabIndex={-1}
         className={cn(
           'mx-4 max-w-md rounded-2xl p-8 text-center',
-          'bg-gradient-to-br from-pink-500/20 via-purple-500/20 to-blue-500/20',
-          'border border-pink-300/30 shadow-2xl shadow-pink-500/20',
+          'bg-surface-raised text-content',
+          'border border-line shadow-2xl',
           'animate-in fade-in zoom-in duration-300'
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 text-4xl">💌</div>
-        <h2 className="font-display mb-4 bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-2xl font-bold text-transparent tracking-widest">
+
+        <h2 className="mb-4 text-2xl font-semibold text-content">
           {LOVE_LETTER.title}
         </h2>
-        <div className="space-y-1.5 text-sm leading-loose text-gray-200 tracking-wide">
+        <div className="space-y-1.5 text-sm leading-loose text-muted">
           {LOVE_LETTER.body.map((line, i) => (
             <p key={i} className={line === '' ? 'h-2' : ''}>
               {line}
@@ -68,9 +77,9 @@ export function LoveLetterEasterEgg() {
         </div>
         <button
           onClick={close}
-          className="mt-6 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-8 py-2 text-sm font-medium text-white transition-transform hover:scale-105"
+          className="btn-primary mt-6 px-8 min-h-11"
         >
-          收下啦 💕
+          收好这份心意
         </button>
       </div>
     </div>

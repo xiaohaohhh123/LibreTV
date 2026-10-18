@@ -29,10 +29,10 @@ export const metadata: Metadata = {
   description:
     '小鱼TV 是一个在线视频搜索平台，无广告、安全，提供来自多个视频源的内容搜索与观看服务，无需注册即可使用。',
   manifest: '/manifest.webmanifest',
-  // 图标与门户站（LibreTV-portal）同一套：同一张 artwork 导出的多尺寸 + 根目录 favicon.ico 兜底。
-  // 只声明单张 512 时，抓取端只能拿大图缩放，小尺寸下易糊、看起来「没填满」。
+  // 各尺寸由同一小鱼矢量图导出，网页和添加到主屏幕时保持一致。
   icons: {
     icon: [
+      { url: '/brand-mark.svg', sizes: 'any', type: 'image/svg+xml' },
       { url: '/favicon.ico', sizes: '48x48' },
       { url: '/icons/icon-96.png', sizes: '96x96', type: 'image/png' },
       { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0b101a',
+  themeColor: '#0d141c',
   width: 'device-width',
   initialScale: 1,
 };

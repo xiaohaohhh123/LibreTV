@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { buildImageCandidates, buildImageUrl } from './utils';
+import { buildImageCandidates, buildImageUrl, buildWatchUrl } from './utils';
+
+it('换源链接携带有效进度，拒绝非法值', () => {
+  const params = {sourceKey: 'test', index: 2, title: '剧名'};
+  const url = new URL(buildWatchUrl({...params, position: 123.8}), 'https://example.com');
+  expect(url.searchParams.get('position')).toBe('123');
+  expect(url.searchParams.get('index')).toBe('2');
+  for (const position of [NaN, Infinity, -1, 0]) {
+    expect(buildWatchUrl({...params, position})).not.toContain('position=');
+  }
+});
 
 describe('buildImageUrl', () => {
   it('proxy 模式走查询串形式（路径形式会被 EdgeOne 等网关归一化破坏）', () => {

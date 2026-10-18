@@ -42,6 +42,8 @@ export interface VideoInfo {
 
 export interface VideoDetail {
   episodes: string[];
+  /** 与播放地址一一对应，保留预告/花絮与正片集数的区别。 */
+  episodeNames?: string[];
   videoInfo: VideoInfo;
 }
 

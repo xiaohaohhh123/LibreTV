@@ -61,6 +61,23 @@ afterEach(() => {
 });
 
 describe('POST /api/search', () => {
+  it('请求不能关闭内容筛选，分批和最终结果都不会泄漏被过滤的条目', async () => {
+    mockUpstream();
+    const res = await POST(makeRequest({ wd: '福利速递', sources: [SOURCES[0]], filterAdult: false }, true));
+    const events = (await res.text()).trim().split('\n').map((line) => JSON.parse(line));
+    expect(events.length).toBeGreaterThan(0);
+    for (const event of events) {
+      expect(event.list.some((item: { vodId: string }) => item.vodId === '3')).toBe(false);
+    }
+  });
+
+  it('标记为成人的来源不请求上游', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const res = await POST(makeRequest({ wd: 'adult-source', sources: [{...SOURCES[0], isAdult: true}] }));
+    expect((await res.json()).list).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
   it('聚合多源结果：同源去重、成人内容过滤、失败源进 failures', async () => {
     mockUpstream();
     const res = await POST(makeRequest({ wd: '测试剧', sources: SOURCES, filterAdult: true }));

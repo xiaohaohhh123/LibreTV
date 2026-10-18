@@ -38,12 +38,10 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur border-b border-line">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
+      <header className="site-header sticky top-0 z-40 bg-surface/90 backdrop-blur border-b border-line">
+        <div className="max-w-6xl mx-auto px-4 min-h-16 flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
           <Link href="/" aria-label="小鱼TV 首页" className="flex items-center shrink-0 gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icons/icon-512.png" alt="小鱼TV" className="w-7 h-7 rounded-lg" />
-            <span className="hidden md:inline text-lg">
+            <span className="text-lg">
               <BrandLogo />
             </span>
           </Link>
@@ -98,9 +96,9 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
             </form>
           )}
 
-          <div className="flex-1 sm:hidden" />
-
-          <nav className="flex items-center gap-1 ml-auto">
+          <nav className="contents" aria-label="主导航">
+            <div className="header-pages order-3 basis-full flex items-center gap-1 sm:order-none sm:basis-auto sm:ml-auto">
+            <HeaderLink href="/" active={pathname === '/'}>发现</HeaderLink>
             <HeaderLink href="/live" active={pathname === '/live'}>
               直播
             </HeaderLink>
@@ -110,6 +108,8 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
             <HeaderLink href="/about" active={pathname === '/about'}>
               关于
             </HeaderLink>
+            </div>
+            <div className="flex items-center gap-1 ml-auto sm:ml-0">
             <ThemeToggle />
             <IconButton label="观看历史" onClick={() => setHistoryOpen(true)}>
               <Icon name="clock" />
@@ -120,6 +120,7 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
             <IconButton label="设置" onClick={() => setSettingsOpen(true)}>
               <Icon name="gear" />
             </IconButton>
+            </div>
           </nav>
         </div>
       </header>
@@ -134,8 +135,9 @@ function HeaderLink({ href, active, children }: { href: string; active: boolean;
   return (
     <Link
       href={href}
+      aria-current={active ? 'page' : undefined}
       className={cn(
-        'px-2.5 py-1.5 rounded-md text-sm transition-colors',
+        'px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-colors',
         active ? 'text-content bg-hover' : 'text-muted hover:text-content'
       )}
     >

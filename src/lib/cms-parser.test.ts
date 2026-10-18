@@ -100,6 +100,7 @@ describe('parseDetail', () => {
     };
     const detail = parseDetail(data, source);
     expect(detail.episodes).toHaveLength(2);
+    expect(detail.episodeNames).toEqual(['第1集', '第2集']);
     expect(detail.videoInfo.title).toBe('三体');
     expect(detail.videoInfo.sourceName).toBe('测试源');
   });
@@ -147,6 +148,21 @@ describe('成人内容过滤', () => {
     const items = [{ typeName: '伦理片' }, { typeName: '剧情片' }];
     expect(filterAdultResults(items, true)).toEqual([{ typeName: '剧情片' }]);
     expect(filterAdultResults(items, false)).toHaveLength(2);
+  });
+
+  it('拦截色情动漫和成人源，保留普通同性题材与成熟向非色情动漫', () => {
+    const items = [
+      { typeName: '成人动漫' },
+      { typeName: 'HENTAI' },
+      { typeName: '动画', name: '里番合集' },
+      { typeName: '剧情片', isAdult: true },
+      { typeName: '同性片', name: '普通剧情' },
+      { typeName: '动画', name: '夏日故事' },
+      { typeName: '日韩动漫', name: '悬疑故事' },
+      { typeName: '青年动画', name: '成熟题材与复杂关系' },
+      { typeName: '悬疑动漫', name: '18岁以上：战争与人性' },
+    ];
+    expect(filterAdultResults(items, true)).toEqual(items.slice(4));
   });
 });
 

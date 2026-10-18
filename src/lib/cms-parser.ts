@@ -52,6 +52,10 @@ export function parseSearchList(
  * 真实 m3u8 在后面的线路里，因此优先取包含 m3u8 直链的线路；均无 m3u8 时回退第一条。
  */
 export function extractEpisodesFromPlayUrl(playUrl: string): string[] {
+  return extractEpisodeEntries(playUrl).map((entry) => entry.url);
+}
+
+function extractEpisodeEntries(playUrl: string): { name: string; url: string }[] {
   if (!playUrl) return [];
   const groups = playUrl
     .split('$$$')
@@ -60,13 +64,13 @@ export function extractEpisodesFromPlayUrl(playUrl: string): string[] {
         .split('#')
         .map((ep) => {
           const parts = ep.split('$');
-          return parts.length > 1 ? parts[1] : '';
+          return { name: parts[0].trim(), url: parts.length > 1 ? parts[1] : '' };
         })
-        .filter((url) => url.startsWith('http://') || url.startsWith('https://'))
+        .filter(({ url }) => url.startsWith('http://') || url.startsWith('https://'))
     )
     .filter((eps) => eps.length > 0);
   if (groups.length === 0) return [];
-  return groups.find((eps) => eps.some((url) => url.includes('.m3u8'))) ?? groups[0];
+  return groups.find((eps) => eps.some(({ url }) => url.includes('.m3u8'))) ?? groups[0];
 }
 
 /** 从简介文本中兜底提取 m3u8 链接 */
@@ -86,12 +90,14 @@ export function parseDetail(
     throw new Error('获取到的详情内容无效');
   }
   const vod = d.list[0];
-  let episodes = extractEpisodesFromPlayUrl(String(vod.vod_play_url ?? ''));
+  const entries = extractEpisodeEntries(String(vod.vod_play_url ?? ''));
+  let episodes = entries.map((entry) => entry.url);
   if (episodes.length === 0) {
     episodes = extractM3u8FromText(String(vod.vod_content ?? ''));
   }
   return {
     episodes,
+    episodeNames: entries.map((entry) => entry.name),
     videoInfo: {
       title: str(vod.vod_name),
       cover: str(vod.vod_pic),
@@ -154,17 +160,17 @@ export function parseDetailPageHtml(
 const ADULT_KEYWORDS = [
   '伦理片', '福利', '倫理片', '福利片', '日本伦理', '日本福利', '日本福利片', '日本伦理片', '擦边短剧', '擦边', '韩国伦理','里番动漫', '门事件', '萝莉少女', '制服诱惑', '国产传媒',
   'cosplay', '黑丝诱惑', '无码', '日本无码', '有码', '日本有码', 'SWAG',
-  '网红主播', '色情片', '同性片', '福利视频', '无码高清', '有码高清', '91视频', '自拍偷拍', 'mini传媒', '福利片',
+  '网红主播', '色情片', '成人动漫', '色情动漫', '成人动画', '里番', 'Hentai', 'hentai', '福利视频', '无码高清', '有码高清', '91视频', '自拍偷拍', 'mini传媒', '福利片',
 ];
 
 export function isAdultContent(typeName: string | undefined): boolean {
   if (!typeName) return false;
-  return ADULT_KEYWORDS.some((k) => typeName.includes(k));
+  return ADULT_KEYWORDS.some((k) => typeName.toLowerCase().includes(k.toLowerCase()));
 }
 
-export function filterAdultResults<T extends { typeName?: string }>(items: T[], enabled: boolean): T[] {
+export function filterAdultResults<T extends { typeName?: string; name?: string; isAdult?: boolean }>(items: T[], enabled: boolean): T[] {
   if (!enabled) return items;
-  return items.filter((item) => !isAdultContent(item.typeName));
+  return items.filter((item) => !item.isAdult && !isAdultContent(item.typeName) && !/(色情|里番|无码|成人视频|成人动漫|hentai)/i.test(item.name || ''));
 }
 
 /**

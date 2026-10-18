@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80" fill="none">
+  <!-- Original Xiaoyu fish paths retained; simplified color treatment. -->
+  <path d="M12 40 C 28 18, 62 14, 88 32 C 96 38, 96 42, 88 48 C 62 66, 28 62, 12 40 Z" fill="#8bd5c5"/>
+  <path d="M88 32 L 112 20 L 104 40 L 112 60 L 88 48 Z" fill="#8bd5c5"/>
+  <circle cx="30" cy="34" r="5" fill="#143e38"/>
+  <circle cx="31.5" cy="32.5" r="1.8" fill="#fff"/>
+</svg>

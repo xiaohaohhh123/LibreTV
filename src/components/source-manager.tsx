@@ -710,12 +710,7 @@ function HomePanel() {
     <section>
       <SectionTitle title="首页与内容过滤" />
       <div className="space-y-3">
-        <ToggleRow
-          label="成人内容过滤"
-          description="过滤“伦理片”等分类的结果"
-          checked={store.yellowFilter}
-          onChange={(v) => store.updateSettings({ yellowFilter: v })}
-        />
+        <p className="rounded-lg bg-chip p-3 text-sm text-muted">内容筛选已开启：不展示成人来源、色情及成人动漫分类。</p>
         <ToggleRow
           label="首页推荐"
           description="在首页展示推荐内容"

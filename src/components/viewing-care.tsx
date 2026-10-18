@@ -1,113 +1,60 @@
 'use client';
-
 import { useEffect, useRef, useState } from 'react';
-import { getBufferingCare } from '@/lib/xiaoyu-caring';
-import { cn } from '@/lib/utils';
+import { FRIEND_NOTES, getTimeGreeting, viewingDelta, getBufferingCare } from '@/lib/xiaoyu-caring';
+import { Icon } from './icon';
 
-/** 观影中的温馨提醒文案 */
-const VIEWING_REMINDERS = [
-  { icon: '💧', text: '看了这么久了，喝口水休息一下吧' },
-  { icon: '👀', text: '眼睛累了吧，看看远方放松一下' },
-  { icon: '🧘', text: '起来伸个懒腰，活动一下肩颈' },
-  { icon: '🍎', text: '追剧也要记得吃点东西哦' },
-];
-
-/**
- * 播放页观影关怀：在她看电视时适时出现，不打扰。
- * - 每 45 分钟一次温馨提醒（可关闭，右下角小浮条）
- * - 换集时显示一句关心语
- */
-export function ViewingCare({ episodeIndex }: { episodeIndex: number }) {
-  const [reminder, setReminder] = useState<(typeof VIEWING_REMINDERS)[number] | null>(null);
-  const [episodeTip, setEpisodeTip] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const prevEpisode = useRef(episodeIndex);
-
-  // 每 45 分钟提醒一次
+/** 留在播放器下方；暂停、后台和快进都不算观看时长。 */
+export function ViewingCare({ episodeKey }: { episodeKey: string }) {
+  const [enabled, setEnabled] = useState(true);
+  const [rest, setRest] = useState(false);
+  const [note, setNote] = useState<number | null>(null);
+  const [greeting, setGreeting] = useState('故事慢慢看，今天也慢慢来。');
+  const watched = useRef(0);
+  const nextNote = useRef(Math.floor(Date.now() / 86400000) % FRIEND_NOTES.length);
   useEffect(() => {
-    const showReminder = () => {
-      const pick = VIEWING_REMINDERS[Math.floor(Math.random() * VIEWING_REMINDERS.length)];
-      setReminder(pick);
-      // 8 秒后自动消失
-      setTimeout(() => setReminder(null), 8000);
-    };
-    // 45 分钟后第一次提醒
-    timerRef.current = setInterval(showReminder, 45 * 60 * 1000);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    try { setEnabled(localStorage.getItem('xiaoyu-care-enabled') !== 'false'); } catch { /* 无存储权限时仍可使用 */ }
   }, []);
-
-  // 换集时显示关心语
+  const toggleReminder = () => {
+    const next = !enabled;
+    setEnabled(next); setRest(false); watched.current = 0;
+    try { localStorage.setItem('xiaoyu-care-enabled', String(next)); } catch { /* 当前页设置仍生效 */ }
+  };
+  useEffect(() => setGreeting(getTimeGreeting().subtitle), []);
   useEffect(() => {
-    if (prevEpisode.current !== episodeIndex) {
-      prevEpisode.current = episodeIndex;
-      setEpisodeTip(true);
-      setTimeout(() => setEpisodeTip(false), 5000);
-    }
-  }, [episodeIndex]);
+    let previous = 0;
+    let video: HTMLVideoElement | null = null;
+    const update = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLVideoElement)) return;
+      if (video !== target) { video = target; previous = target.currentTime; return; }
+      if (enabled) watched.current += viewingDelta(previous, target.currentTime, target.paused || target.seeking, !document.hidden, target.playbackRate);
+      previous = target.currentTime;
+      if (enabled && watched.current >= 45 * 60) { watched.current = 0; setRest(true); }
+    };
+    document.addEventListener('timeupdate', update, true);
+    return () => document.removeEventListener('timeupdate', update, true);
+  }, [episodeKey, enabled]);
 
   return (
-    <>
-      {/* 长时间观影提醒：右下角小浮条 */}
-      {reminder && (
-        <div
-          className={cn(
-            'fixed bottom-6 right-6 z-[9990] max-w-xs',
-            'flex items-center gap-3 rounded-2xl px-4 py-3',
-            'bg-gradient-to-r from-pink-500/90 to-purple-500/90',
-            'text-sm text-white shadow-lg shadow-pink-500/30',
-            'animate-in fade-in slide-in-from-bottom-4 duration-500'
-          )}
-        >
-          <span className="text-xl">{reminder.icon}</span>
-          <span>{reminder.text}</span>
-          <button
-            onClick={() => setReminder(null)}
-            className="ml-1 shrink-0 rounded-full p-0.5 hover:bg-white/20"
-            aria-label="关闭"
-          >
-            ✕
-          </button>
+    <section className="viewing-care" aria-label="观影小憩">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="care-caption">幕间 · 给小鱼的一点小关心</p>
+          <p className="care-message" role={rest ? 'status' : undefined}>{rest ? '已经看了45分钟，趁幕间看看远处、喝口水吧。故事会等你。' : greeting}</p>
         </div>
-      )}
-
-      {/* 换集关心语：顶部小横幅 */}
-      {episodeTip && (
-        <div
-          className={cn(
-            'fixed top-4 left-1/2 z-[9990] -translate-x-1/2',
-            'rounded-full px-5 py-2',
-            'bg-black/70 backdrop-blur-sm border border-pink-300/20',
-            'text-sm text-pink-200',
-            'animate-in fade-in slide-in-from-top-4 duration-500'
-          )}
-        >
-          ✨ 下一集开始了，记得喝水哦
-        </div>
-      )}
-    </>
+        {rest && <button className="care-icon shrink-0" onClick={() => setRest(false)} aria-label="收起休息提醒"><Icon name="close" /></button>}
+      </div>
+      <div className="flex flex-wrap justify-between gap-x-6 mt-2">
+        <button className="care-action" aria-expanded={note !== null} aria-controls="friend-note" onClick={() => setNote(note === null ? nextNote.current++ % FRIEND_NOTES.length : null)}>{note === null ? '拆开一张小纸条 ↗' : '收好这张小纸条'}</button>
+        <button className="care-action" aria-pressed={enabled} onClick={toggleReminder}>{enabled ? '45分钟休息提醒 · 已开启' : '休息提醒 · 已关闭'}</button>
+      </div>
+      {note !== null && <div id="friend-note" className="friend-note"><p className="friend-note-label">给小鱼的小纸条</p><p>{FRIEND_NOTES[note]}</p><p className="friend-note-signature">— 小皓</p></div>}
+    </section>
   );
 }
 
-/**
- * 缓冲时的关心语：替代生硬的"加载中"。
- */
 export function BufferingCare({ show }: { show: boolean }) {
   const [text, setText] = useState('');
-
-  useEffect(() => {
-    if (show) {
-      setText(getBufferingCare());
-    }
-  }, [show]);
-
-  if (!show) return null;
-
-  return (
-    <div className="flex flex-col items-center gap-2 text-sm text-gray-400">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-pink-400 border-t-transparent" />
-      <p>{text}</p>
-    </div>
-  );
+  useEffect(() => { if (show) setText(getBufferingCare()); }, [show]);
+  return show ? <p className="text-sm text-muted" role="status">{text}</p> : null;
 }

@@ -30,7 +30,6 @@ import {
   db,
 } from '@/lib/db';
 import { cn } from '@/lib/utils';
-import { LateNightReminder } from '@/components/late-night-reminder';
 import { ViewingCare } from '@/components/viewing-care';
 
 /**
@@ -42,17 +41,8 @@ export default function WatchPage() {
   return (
     <Suspense>
       <WatchContent />
-      <LateNightReminder />
-      <ViewingCareWrapper />
     </Suspense>
   );
-}
-
-/** 从 URL 参数读取当前集数，传给 ViewingCare */
-function ViewingCareWrapper() {
-  const searchParams = useSearchParams();
-  const episodeIndex = parseInt(searchParams.get('ep') || '0', 10);
-  return <ViewingCare episodeIndex={episodeIndex} />;
 }
 
 function WatchContent() {
@@ -69,6 +59,9 @@ function WatchContent() {
 
   const [reversed, setReversed] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
+  const [automaticSwitch, setAutomaticSwitch] = useState(false);
+  const failedSources = useRef<string[]>([]);
+  const recoveryPosition = useRef(0);
 
   const source = resolveSource(store, sourceKey, {
     url: searchParams.get('sourceUrl') || undefined,
@@ -85,6 +78,7 @@ function WatchContent() {
 
   const episodes = useMemo(() => detailQuery.data?.episodes ?? [], [detailQuery.data]);
   const videoTitle = titleParam || detailQuery.data?.videoInfo?.title || '未知视频';
+  useEffect(() => { failedSources.current = []; }, [videoTitle, indexParam]);
 
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
@@ -99,6 +93,7 @@ function WatchContent() {
     if (episodes.length > 0) return Math.min(Math.max(indexParam, 0), episodes.length - 1);
     return indexParam;
   }, [episodes, indexParam]);
+  const episodeLabel = detailQuery.data?.episodeNames?.[currentIndex] || `第 ${currentIndex + 1} 集`;
 
   const goEpisode = useCallback(
     (index: number) => {
@@ -142,8 +137,11 @@ function WatchContent() {
   }, [verified, sourceKey, vodId, currentIndex, videoTitle, currentUrl]);
 
   // 播放中与暂停时的进度落盘逻辑一致，共用同一回调
+  const playbackPosition = useRef(0);
+  useEffect(() => { playbackPosition.current = 0; }, [sourceKey, vodId, currentIndex]);
   const handleProgress = useCallback(
     (position: number, duration: number) => {
+      playbackPosition.current = position;
       if (vodId) {
         saveProgress(sourceKey, vodId, currentIndex, position, duration).catch(() => {});
         updateHistoryProgress(sourceKey, vodId || currentUrl, position, duration).catch(() => {});
@@ -169,6 +167,8 @@ function WatchContent() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!e.altKey) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]') || document.querySelector('.cinema-is-locked')) return;
       if (e.key === 'ArrowLeft' && currentIndex > 0) {
         e.preventDefault();
         goEpisode(currentIndex - 1);
@@ -206,19 +206,19 @@ function WatchContent() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="watch-room min-h-screen flex flex-col">
       <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur border-b border-line">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-4 min-h-16 flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
           <BackButton />
           <HomeButton />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-sm font-medium text-content truncate">{videoTitle}</h1>
-            <p className="text-xs text-faint">
+            <p className="text-xs text-faint truncate">
               {source.name}
-              {episodes.length > 0 && ` · 第 ${currentIndex + 1}/${episodes.length} 集`}
+              {episodes.length > 0 && ` · ${episodeLabel}`}
             </p>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="watch-actions ml-auto flex items-center gap-2">
             <button
               className="btn-ghost btn-sm"
               onClick={() => {
@@ -226,7 +226,7 @@ function WatchContent() {
                 enqueueDownload({
                   url: currentUrl,
                   // 多集才带集数后缀；单集影片（含电影）文件名就是纯标题
-                  title: `${videoTitle}${episodes.length > 1 ? ` 第${currentIndex + 1}集` : ''}`,
+                  title: `${videoTitle}${episodes.length > 1 ? ` ${episodeLabel}` : ''}`,
                   format: 'MP4',
                 });
                 // 「已加入下载队列」由 DownloadManager 在真正入队后提示：
@@ -235,7 +235,7 @@ function WatchContent() {
             >
               下载本集
             </button>
-            <button className="btn-ghost btn-sm" onClick={() => setSwitchOpen(true)}>
+            <button className="btn-ghost btn-sm" onClick={() => { setAutomaticSwitch(false); setSwitchOpen(true); }}>
               切换资源
             </button>
           </div>
@@ -250,6 +250,9 @@ function WatchContent() {
                 <PlayerShell
                   url={currentUrl}
                   title={videoTitle}
+                  episodeNames={episodes.map((_, index) => detailQuery.data?.episodeNames?.[index] || `第${index + 1}集`)}
+                  currentIndex={currentIndex}
+                  onSelectEpisode={goEpisode}
                   adFilter={store.adFilter}
                   autoplayNext={store.autoplayNext}
                   episodeKey={`${sourceKey}:${vodId}:${currentIndex}`}
@@ -262,7 +265,13 @@ function WatchContent() {
                   onTimeUpdate={handleProgress}
                   onPause={handleProgress}
                   onEnded={handleEnded}
-                  onRequestSwitchSource={() => setSwitchOpen(true)}
+                  onRequestSwitchSource={(_reason, position) => {
+                    if (position !== undefined && Number.isFinite(position) && position > 0) playbackPosition.current = position;
+                    if (!failedSources.current.includes(sourceKey)) failedSources.current.push(sourceKey);
+                    recoveryPosition.current = playbackPosition.current || Number(searchParams.get('position')) || 0;
+                    setAutomaticSwitch(true);
+                    setSwitchOpen(true);
+                  }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
@@ -303,6 +312,7 @@ function WatchContent() {
                 自动连播
               </label>
             </div>
+            <ViewingCare episodeKey={`${sourceKey}:${vodId}:${currentIndex}`} />
           </div>
 
           {/* 剧集侧栏 */}
@@ -340,6 +350,7 @@ function WatchContent() {
                     key={realIndex}
                     index={realIndex}
                     active={realIndex === currentIndex}
+                    label={detailQuery.data?.episodeNames?.[realIndex]}
                     onClick={() => goEpisode(realIndex)}
                   />
                 ))}
@@ -358,6 +369,13 @@ function WatchContent() {
           currentSourceKey={sourceKey}
           currentVodId={vodId}
           currentIndex={currentIndex}
+          getPosition={() => playbackPosition.current}
+          automatic={automaticSwitch}
+          failedSources={failedSources.current}
+          currentYear={detailQuery.data?.videoInfo.year}
+          currentEpisodeCount={episodes.length}
+          currentEpisodeNames={detailQuery.data?.episodeNames}
+          recoveryPosition={recoveryPosition.current}
           onClose={() => setSwitchOpen(false)}
         />
       )}
@@ -366,7 +384,7 @@ function WatchContent() {
 }
 
 /** 集数按钮：激活时自动滚动进可视区（长剧列表） */
-function EpisodeButton({ index, active, onClick }: { index: number; active: boolean; onClick: () => void }) {
+function EpisodeButton({ index, active, label, onClick }: { index: number; active: boolean; label?: string; onClick: () => void }) {
   const ref = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -377,9 +395,11 @@ function EpisodeButton({ index, active, onClick }: { index: number; active: bool
     <button
       ref={ref}
       className={cn('btn btn-sm !px-1', active ? 'episode-active' : 'btn-ghost')}
+      aria-current={active ? 'true' : undefined}
+      title={label || `第 ${index + 1} 集`}
       onClick={onClick}
     >
-      {index + 1}
+      {label || index + 1}
     </button>
   );
 }

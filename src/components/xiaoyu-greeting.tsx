@@ -1,21 +1,10 @@
-'use client';
-
-import { useMemo } from 'react';
-import { getTimeGreeting } from '@/lib/xiaoyu-caring';
-
-/**
- * 小鱼TV 首页 Hero 问候区：按时间段显示不同的关心语。
- * 放在搜索框上方，温馨开场。
- */
+/** 首页只负责选片，持续的关怀留在播放页。 */
 export function XiaoyuGreeting() {
-  const greeting = useMemo(() => getTimeGreeting(), []);
-
   return (
-    <div className="mb-6 text-center">
-      <h1 className="font-display bg-gradient-to-r from-cyan-400 via-pink-400 to-purple-400 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl drop-shadow-sm">
-        {greeting.title}
-      </h1>
-      <p className="mt-2 text-sm text-gray-400 tracking-wide">{greeting.subtitle}</p>
+    <div>
+      <p className="room-label">小鱼的私人放映室</p>
+      <h1 className="room-title">把今天，<span>留给一部好剧。</span></h1>
+      <p className="room-subtitle">不赶进度，找到喜欢的故事就好。</p>
     </div>
   );
 }

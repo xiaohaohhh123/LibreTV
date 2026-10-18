@@ -306,8 +306,8 @@ export function DoubanCard({ item, onClick }: { item: { title: string; cover: st
           </span>
         )}
       </div>
-      <div className="p-2">
-        <div className="text-xs font-medium text-content truncate" title={item.title}>
+      <div className="px-3 py-3">
+        <div className="text-sm font-medium text-content line-clamp-2 min-h-[2.8em] leading-snug" title={item.title}>
           {item.title}
         </div>
       </div>

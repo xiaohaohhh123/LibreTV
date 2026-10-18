@@ -11,7 +11,9 @@ import {
   getNextEpisodePrefetcher,
 } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
+import { hasPrefetchHeadroom, shouldWarmNextEpisode } from '@/lib/source-recovery-match';
 import { formatTime } from '@/lib/utils';
+import { PlayerChrome } from './player-chrome';
 
 /**
  * 播放器外壳：ArtPlayer + hls.js（旧版 player.js 的 React 化）。
@@ -26,6 +28,9 @@ import { formatTime } from '@/lib/utils';
 interface PlayerShellProps {
   url: string;
   title: string;
+  episodeNames?: string[];
+  currentIndex?: number;
+  onSelectEpisode?: (index: number) => void;
   adFilter: boolean;
   autoplayNext: boolean;
   /** 剧集标识 `${source}:${vodId}:${episodeIndex}`（片段缓存按集淘汰的分组键） */
@@ -45,12 +50,15 @@ interface PlayerShellProps {
   onEnded?: () => void;
   onPause?: (position: number, duration: number) => void;
   /** 恢复策略判源不可用（重试耗尽/格式硬失败）时回调：父级弹出换源面板 */
-  onRequestSwitchSource?: (reason: string) => void;
+  onRequestSwitchSource?: (reason: string, position?: number) => void;
 }
 
 export function PlayerShell({
   url,
   title,
+  episodeNames = [],
+  currentIndex = 0,
+  onSelectEpisode,
   adFilter,
   autoplayNext,
   episodeKey,
@@ -69,9 +77,10 @@ export function PlayerShell({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const artRef = useRef<any>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const [player, setPlayer] = useState<Artplayer | null>(null);
   const [error, setError] = useState('');
   const [hint, setHint] = useState('');
-  // 起播前的品牌占位图（沿用旧版 nomedia 素材），实际开始播放后隐藏
+  // 实际开始播放后隐藏品牌占位，点击仍由原播放器接管。
   const [showPoster, setShowPoster] = useState(true);
   // 跳过片头 / 片尾下一集 悬浮按钮
   const [showSkipIntro, setShowSkipIntro] = useState(false);
@@ -154,23 +163,47 @@ export function PlayerShell({
   const ensurePrefetch = (mediaUrl: string, currentTime: number, horizonSeconds?: number) => {
     const p = propsRef.current;
     if (!p.episodeKey) return;
+    const video = artRef.current?.video;
+    if (!video) return;
+    let bufferAhead = 0;
+    for (let i = 0; i < video.buffered.length; i++) {
+      if (video.buffered.start(i) <= currentTime && video.buffered.end(i) >= currentTime) bufferAhead = video.buffered.end(i) - currentTime;
+    }
+    if (!hasPrefetchHeadroom(bufferAhead, video.paused && playbackStartedRef.current)) return;
     getVideoPrefetcher().ensure({
       m3u8Url: mediaUrl,
       currentTime,
       episodeKey: p.episodeKey,
       horizonSeconds,
+      concurrency: 1,
       onProgress: (stats) => {
-        // 当前集预取完成且存在下一集：用独立预取器预热下一集前 7 分钟
-        if (stats.state === 'done' && p.nextUrl && p.nextEpisodeKey) {
+        // 当前集有余量且快到片尾时才预热，避免开场就争抢下一集带宽。
+        if (stats.state === 'done' && p.nextUrl && p.nextEpisodeKey && shouldWarmNextEpisode(video.currentTime, video.duration, p.autoplayNext)) {
           getNextEpisodePrefetcher().ensure({
             m3u8Url: p.nextUrl,
             currentTime: 0,
             episodeKey: p.nextEpisodeKey,
-            horizonSeconds: 420,
+            horizonSeconds: 90,
+            concurrency: 1,
           });
         }
       },
     });
+  };
+
+  const restorePlaybackPosition = async () => {
+    const art = artRef.current;
+    if (!art || restoredRef.current || !Number.isFinite(art.video.duration) || art.video.duration <= 0) return;
+    const episode = propsRef.current.episodeKey;
+    restoredRef.current = true;
+    try {
+      const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+      if (artRef.current !== art || propsRef.current.episodeKey !== episode) return;
+      if (saved > 10 && saved < art.video.duration - 2) {
+        art.currentTime = saved;
+        showHint(`已从 ${formatTime(saved)} 继续播放`);
+      }
+    } catch { /* 读取进度失败仍正常播放 */ }
   };
 
   /**
@@ -214,25 +247,8 @@ export function PlayerShell({
           });
         }
       } catch { /* 画质选择器失败不影响播放 */ }
-      // 预取锚点：恢复进度时直接取恢复目标。赋值后 video.currentTime 未必立刻反映
-      // （Safari 系），而 ensure 是以「锚点未变」为前提复用 parsing 中的运行的——
-      // 这里读到旧值会把窗口建在片头，且白等一次纠错重建。
-      let prefetchAnchor = video.currentTime;
-      // 进度恢复（每集一次）：优先 URL position，其次 IndexedDB 记录
-      if (!restoredRef.current) {
-        restoredRef.current = true;
-        try {
-          const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
-          const duration = artRef.current?.duration || 0;
-          if (saved > 10 && duration > 0 && saved < duration - 2) {
-            if (artRef.current) artRef.current.currentTime = saved;
-            prefetchAnchor = saved;
-            showHint(`已从 ${formatTime(saved)} 继续播放`);
-          }
-        } catch { /* 忽略恢复失败 */ }
-      }
-      // 新集立即预取（否则要等 timeupdate 的 30s 节流，起播初期无缓存）
-      ensurePrefetch(mediaUrl, prefetchAnchor);
+      // 起播先交给 HLS；待媒体时长就绪后再恢复进度。
+      ensurePrefetch(mediaUrl, video.currentTime);
       video.play().catch(() => {});
     });
     // 播放链路恢复（FRAG_LOADED / MANIFEST_PARSED）：静默窗外清零连续失败计数
@@ -276,9 +292,10 @@ export function PlayerShell({
           // 覆盖播放开始后的场景：起播失败走 setError 遮罩；
           // 播放中失败走回调弹换源面板（父级未提供回调时同样 setError）
           const message = `${describeHlsError(data.type, data.details)}：${decision.reason}`;
-          if (playbackStartedRef.current) {
+          setError(`当前线路暂不可用，${message}`);
+          if (propsRef.current.onRequestSwitchSource) {
             showHint(message);
-            propsRef.current.onRequestSwitchSource?.(decision.reason);
+            propsRef.current.onRequestSwitchSource?.(decision.reason, video.currentTime);
           } else {
             setError(`视频加载失败，${message}，请尝试其他视频源`);
           }
@@ -305,6 +322,8 @@ export function PlayerShell({
     recoveryRef.current = new PlaybackRecovery();
     // 换集时清掉上一集的预取窗口，避免带宽被旧集占用
     getVideoPrefetcher().stop();
+    getNextEpisodePrefetcher().stop();
+    if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     setError('');
     setShowPoster(true);
     const art = artRef.current;
@@ -348,7 +367,7 @@ export function PlayerShell({
       airplay: true,
       hotkey: false,
       gesture: true,
-      theme: '#2563eb',
+      theme: getComputedStyle(document.documentElement).getPropertyValue('--c-accent').trim() ? `rgb(${getComputedStyle(document.documentElement).getPropertyValue('--c-accent').trim()})` : '#8bd5c5',
       lang: navigator.language.toLowerCase().startsWith('zh') ? 'zh-cn' : 'en',
       moreVideoAttr: { crossOrigin: 'anonymous', playsInline: true },
       customType: {
@@ -358,7 +377,10 @@ export function PlayerShell({
       },
     });
     artRef.current = art;
+    setPlayer(art);
+    art.on('video:durationchange', () => { void restorePlaybackPosition(); });
     art.on('video:loadedmetadata', () => {
+      void restorePlaybackPosition();
       // ArtPlayer 运行时支持 title 选项（类型定义未覆盖），用于界面标题展示
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -384,6 +406,7 @@ export function PlayerShell({
         return;
       }
       setError('视频播放失败，请尝试其他视频源');
+      propsRef.current.onRequestSwitchSource?.('当前线路播放失败', art.currentTime);
     });
     art.on('video:timeupdate', () => {
       const now = Date.now();
@@ -403,20 +426,21 @@ export function PlayerShell({
       ensurePrefetch(currentMediaUrlRef.current, art.currentTime);
     });
     art.on('video:pause', () => {
+      if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
       propsRef.current.onPause?.(art.currentTime, art.duration);
-      // 暂停 = 预取黄金窗口：解除限速并无限铺满整集（用户主动行为，带宽占用可接受）
-      // waiting 触发的限速在此解除，否则黄金窗口会被 500ms 轮询冻结
+      // 暂停时沿用用户的缓存窗口，不擅自把有限缓存放大到整集。
       getVideoPrefetcher().setThrottled(false);
-      ensurePrefetch(currentMediaUrlRef.current, art.currentTime, 0);
+      ensurePrefetch(currentMediaUrlRef.current, art.currentTime);
     });
     art.on('video:waiting', () => {
       // 卡顿：预取临时让出带宽给播放
       getVideoPrefetcher().setThrottled(true);
+      getNextEpisodePrefetcher().stop();
       // 卡顿检测：连续缓冲超过 12 秒，提示用户换源
       if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
       stallTimerRef.current = setTimeout(() => {
         stallTimerRef.current = null;
-        propsRef.current.onRequestSwitchSource?.('当前线路缓冲较慢，换个线路试试');
+        if (!art.video.paused && !document.hidden && art.video.readyState < 3) propsRef.current.onRequestSwitchSource?.('当前线路连续缓冲超过12秒', art.currentTime);
       }, 12000);
     });
     art.on('video:playing', () => {
@@ -462,6 +486,7 @@ export function PlayerShell({
     // —— 键盘快捷键（旧版 hotkey:false + 自定义逻辑的移植） ——
     const shortcuts = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
+      if (lockedRef.current || e.ctrlKey || e.metaKey || target.isContentEditable || target.closest('[role="dialog"]')) return;
       // 输入框或按钮获得焦点时不劫持按键：否则空格会吞掉按钮的默认激活
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.closest('button')) return;
       const current = artRef.current;
@@ -487,14 +512,19 @@ export function PlayerShell({
         case 'f': case 'F':
           current.fullscreen = !current.fullscreen; e.preventDefault();
           break;
+        case 'm': case 'M':
+          current.muted = !current.muted; e.preventDefault();
+          break;
       }
     };
     document.addEventListener('keydown', shortcuts);
 
-    // —— 移动端长按 3 倍速 ——
+    // —— 长按临时 2 倍速，滑动或失焦时恢复 ——
     let longPressTimer: ReturnType<typeof setTimeout> | null = null;
     let isLongPress = false;
     let originalRate = 1.0;
+    let touchX = 0;
+    let touchY = 0;
     const el = containerRef.current;
 
     const onTouchStart = (e: TouchEvent) => {
@@ -504,13 +534,15 @@ export function PlayerShell({
       // 松手后倍速永久卡在 3x；旧定时器句柄也会被覆盖成无法清除的幽灵触发
       if (isLongPress || longPressTimer) return;
       // 控制栏 / 设置面板上的长按不触发倍速（按住进度条拖动、长按倍速菜单项会误触）
-      if ((e.target as HTMLElement).closest?.('.art-controls, .art-settings')) return;
+      if (e.touches.length !== 1 || (e.target as HTMLElement).closest?.('.art-controls, .art-settings, button, .cinema-panel')) return;
+      touchX = e.touches[0].clientX;
+      touchY = e.touches[0].clientY;
       originalRate = art.video.playbackRate;
       longPressTimer = setTimeout(() => {
         if (art.video?.paused) return;
-        art.video.playbackRate = 3.0;
+        art.video.playbackRate = Math.max(2, originalRate);
         isLongPress = true;
-        showHint('3 倍速');
+        showHint(`${art.video.playbackRate} 倍速播放中 · 松开恢复`);
       }, 500);
     };
     const onTouchEnd = () => {
@@ -522,7 +554,24 @@ export function PlayerShell({
       }
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (isLongPress) e.preventDefault();
+      const touch = e.touches[0];
+      if (!isLongPress && touch && (Math.abs(touch.clientX - touchX) > 12 || Math.abs(touch.clientY - touchY) > 12)) onTouchEnd();
+      if (isLongPress) { e.preventDefault(); e.stopPropagation(); }
+    };
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0 || lockedRef.current || art.video.paused || (e.target as HTMLElement).closest('.art-controls, .art-settings, button, .cinema-panel')) return;
+      originalRate = art.video.playbackRate;
+      longPressTimer = setTimeout(() => {
+        if (art.video.paused) return;
+        art.video.playbackRate = Math.max(2, originalRate);
+        isLongPress = true;
+        showHint(`${art.video.playbackRate} 倍速播放中 · 松开恢复`);
+      }, 500);
+    };
+    let suppressClick = false;
+    const onMouseUp = () => { suppressClick = isLongPress; onTouchEnd(); };
+    const consumeHoldClick = (e: MouseEvent) => {
+      if (suppressClick) { suppressClick = false; e.preventDefault(); e.stopImmediatePropagation(); }
     };
     // ArtPlayer 的 contextmenu 组件只在桌面端初始化（移动端构造函数里跳过 init），
     // 长按倍速因而会连带呼出系统原生菜单/气泡。播放器表面没有可用的原生菜单，统一抑制
@@ -530,12 +579,18 @@ export function PlayerShell({
     el?.addEventListener('touchstart', onTouchStart, { passive: false });
     el?.addEventListener('touchend', onTouchEnd);
     el?.addEventListener('touchcancel', onTouchEnd);
-    el?.addEventListener('touchmove', onTouchMove, { passive: false });
+    el?.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+    el?.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mouseup', onMouseUp);
+    el?.addEventListener('mouseleave', onTouchEnd);
+    el?.addEventListener('click', consumeHoldClick, true);
+    window.addEventListener('blur', onTouchEnd);
     el?.addEventListener('contextmenu', onContextMenu);
 
     // 卸载与页面隐藏时保存进度
     const saveOnHide = () => {
       if (document.visibilityState === 'hidden') {
+        onTouchEnd();
         propsRef.current.onPause?.(art.currentTime, art.duration);
       }
     };
@@ -552,15 +607,23 @@ export function PlayerShell({
       document.removeEventListener('keydown', shortcuts);
       document.removeEventListener('visibilitychange', saveOnHide);
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+      if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
       el?.removeEventListener('touchstart', onTouchStart);
       el?.removeEventListener('touchend', onTouchEnd);
       el?.removeEventListener('touchcancel', onTouchEnd);
-      el?.removeEventListener('touchmove', onTouchMove);
+      el?.removeEventListener('touchmove', onTouchMove, true);
+      el?.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('mouseup', onMouseUp);
+      el?.removeEventListener('mouseleave', onTouchEnd);
+      el?.removeEventListener('click', consumeHoldClick, true);
+      window.removeEventListener('blur', onTouchEnd);
+      onTouchEnd();
       el?.removeEventListener('contextmenu', onContextMenu);
       hlsRef.current?.destroy();
       hlsRef.current = null;
       recoveryRef.current?.dispose();
       getVideoPrefetcher().stop();
+      getNextEpisodePrefetcher().stop();
       art.destroy();
       artRef.current = null;
     };
@@ -619,49 +682,7 @@ export function PlayerShell({
     };
   }, []);
 
-  // —— 桌面端双击快进 / 快退 10 秒（对标腾讯视频网页端） ——
-  // 拦截第二次 click，阻止 ArtPlayer 的单击暂停逻辑；与移动端触摸双击互补
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    let lastClickAt = 0;
-    let lastClickX = 0;
-    let wasPlayingBeforeFirstClick = false;
-    const onClickCapture = (e: MouseEvent) => {
-      // 触摸设备由触摸处理器接管；控制栏/按钮不拦截
-      if (e.detail === 0) return; // 键盘触发的 click
-      if ((e.target as HTMLElement).closest?.('.art-controls, .art-settings, button')) return;
-      const rect = el.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const w = rect.width;
-      const inLeft = x < w * 0.4;
-      const inRight = x > w * 0.6;
-      if (!inLeft && !inRight) { lastClickAt = 0; return; }
-      const v = artRef.current?.video as HTMLVideoElement | undefined;
-      const now = Date.now();
-      if (now - lastClickAt < 400 && Math.abs(e.clientX - lastClickX) < 80) {
-        lastClickAt = 0;
-        e.preventDefault();
-        e.stopPropagation();
-        if (v && Number.isFinite(v.duration)) {
-          const delta = inLeft ? -10 : 10;
-          v.currentTime = Math.min(Math.max(0, v.currentTime + delta), v.duration);
-          showHint(inLeft ? '快退 10 秒' : '快进 10 秒');
-          // 第一次单击已触发暂停/播放切换，这里恢复原状态
-          if (wasPlayingBeforeFirstClick && v.paused) v.play().catch(() => {});
-          else if (!wasPlayingBeforeFirstClick && !v.paused) v.pause();
-        }
-      } else {
-        lastClickAt = now;
-        lastClickX = e.clientX;
-        wasPlayingBeforeFirstClick = v ? !v.paused : false;
-      }
-    };
-    el.addEventListener('click', onClickCapture, { capture: true });
-    return () => {
-      el.removeEventListener('click', onClickCapture, { capture: true } as EventListenerOptions);
-    };
-  }, []);
+  // 桌面双击沿用 ArtPlayer 的全屏行为；触摸双击由上面的分区手势接管。
 
   // —— 换集：仅切换 HLS 源，不重建播放器（保留网页全屏等状态） ——
   const firstUrlRef = useRef(true);
@@ -684,18 +705,16 @@ export function PlayerShell({
   }, [adFilter]);
 
   return (
-    <div className="relative w-full h-full">
+    <div className="cinema-shell relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
+      {player && <PlayerChrome art={player} title={title} episodeLabel={episodeNames[currentIndex]} episodeNames={episodeNames} currentIndex={currentIndex} onSelectEpisode={onSelectEpisode} onNext={onRequestNext} locked={locked}>
       {showPoster && !error && (
-        <div
-          className="absolute inset-0 bg-black pointer-events-none"
-          style={{
-            backgroundImage: 'url(/player-poster.png)',
-            backgroundSize: 'contain',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-          }}
-        />
+        <div className="cinema-poster">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand-mark.svg" width="64" height="48" alt="" />
+          <span>小鱼的放映室</span>
+          <small>准备好，就开场。</small>
+        </div>
       )}
       {error && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80">
@@ -706,18 +725,13 @@ export function PlayerShell({
         </div>
       )}
       {hint && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white text-sm px-3 py-1.5 rounded-full pointer-events-none animate-fade-in">
+        <div className="cinema-hint" role="status">
           {hint}
-        </div>
-      )}
-      {autoplayNext && !error && (
-        <div className="absolute bottom-16 right-3 text-[10px] text-muted bg-black/50 px-2 py-0.5 rounded pointer-events-none">
-          自动连播已开启
         </div>
       )}
       {showSkipIntro && !error && (
         <button
-          className="absolute bottom-24 right-3 z-10 bg-white/95 text-black text-sm font-medium px-4 py-2 rounded-full shadow-lg active:scale-95 transition"
+          className="cinema-skip"
           onClick={() => {
             const v = artRef.current?.video as HTMLVideoElement | undefined;
             const sec = propsRef.current.skipIntroSeconds ?? 90;
@@ -735,7 +749,7 @@ export function PlayerShell({
       )}
       {showNextEp && !error && (
         <button
-          className="absolute bottom-24 right-3 z-10 bg-white/95 text-black text-sm font-medium px-4 py-2 rounded-full shadow-lg active:scale-95 transition"
+          className="cinema-skip"
           onClick={() => propsRef.current.onRequestNext?.()}
         >
           下一集 ›
@@ -745,7 +759,7 @@ export function PlayerShell({
       {!error && !locked && (
         <button
           aria-label="锁定屏幕"
-          className="absolute top-3 right-3 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 text-white/90 active:scale-95 transition"
+          className="cinema-lock"
           onClick={() => { setLocked(true); showHint('屏幕已锁定'); }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -757,14 +771,14 @@ export function PlayerShell({
       {/* 锁屏遮罩：屏蔽所有触摸，只留解锁按钮 */}
       {locked && !error && (
         <div
-          className="absolute inset-0 z-20 flex items-center justify-center bg-black/30"
+          className="cinema-locked-surface"
           onTouchStart={(e) => e.stopPropagation()}
           onTouchEnd={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
           <button
             aria-label="解锁屏幕"
-            className="w-14 h-14 flex items-center justify-center rounded-full bg-black/60 text-white active:scale-95 transition"
+            className="cinema-unlock"
             onClick={() => { setLocked(false); showHint('屏幕已解锁'); }}
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -774,6 +788,7 @@ export function PlayerShell({
           </button>
         </div>
       )}
+      </PlayerChrome>}
     </div>
   );
 }

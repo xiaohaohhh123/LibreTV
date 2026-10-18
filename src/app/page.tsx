@@ -16,9 +16,9 @@ import { useToast } from '@/components/toast';
 import { EmptyState } from '@/components/states';
 import { Icon } from '@/components/icon';
 import { SiteFooter } from '@/components/site-footer';
-import { BrandLogo } from '@/components/brand-logo';
 import { XIAOYU_SEARCH_EASTER_EGG } from '@/lib/xiaoyu-caring';
 import { XiaoyuGreeting } from '@/components/xiaoyu-greeting';
+import { ContinueWatching } from '@/components/continue-watching';
 
 /**
  * 首页：搜索（URL ?s= 驱动，可后退/分享）+ 豆瓣推荐。
@@ -130,7 +130,7 @@ function HomeContent() {
       return;
     }
     // 彩蛋：搜索"小鱼"
-    if (query === '小鱼') {
+    if (query === '小鱼彩蛋') {
       toast(XIAOYU_SEARCH_EASTER_EGG, 'info');
       return;
     }
@@ -189,12 +189,9 @@ function HomeContent() {
         )}
 
         {/* 搜索区 */}
-        <section className={cn('flex flex-col items-center', urlQuery ? 'mb-6' : 'mt-8 mb-8')}>
+        <section className={cn('home-search flex flex-col items-center', urlQuery ? 'mb-6' : 'home-intro')}>
           {!urlQuery && (
-            <header className="text-center mb-6">
-              <h1 className="text-4xl sm:text-5xl">
-                <BrandLogo />
-              </h1>
+            <header className="text-center mb-7">
               <XiaoyuGreeting />
             </header>
           )}
@@ -376,12 +373,12 @@ function HomeContent() {
 
         {/* 首页推荐（有搜索时隐藏） */}
         {!urlQuery && (
-          <RecommendSection
+          <><ContinueWatching /><RecommendSection
             onPick={(title) => {
               setInput(title);
               runSearch(title);
             }}
-          />
+          /></>
         )}
       </main>
 
