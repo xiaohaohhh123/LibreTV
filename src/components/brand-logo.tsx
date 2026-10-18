@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-/** 沿用原有小鱼轮廓，统一为安静的海盐绿图标与字标。 */
+/** 沿用原有小鱼轮廓，统一为柔和的蓝紫粉图标与清晰字标。 */
 export function BrandLogo({ className }: { className?: string }) {
   return <div className={cn('brand-logo', className)} aria-hidden="true">
     <span className="brand-emblem">

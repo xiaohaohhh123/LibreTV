@@ -367,7 +367,7 @@ export function PlayerShell({
       airplay: true,
       hotkey: false,
       gesture: true,
-      theme: getComputedStyle(document.documentElement).getPropertyValue('--c-accent').trim() ? `rgb(${getComputedStyle(document.documentElement).getPropertyValue('--c-accent').trim()})` : '#8bd5c5',
+      theme: getComputedStyle(document.documentElement).getPropertyValue('--c-accent').trim() ? `rgb(${getComputedStyle(document.documentElement).getPropertyValue('--c-accent').trim()})` : '#b7a3f4',
       lang: navigator.language.toLowerCase().startsWith('zh') ? 'zh-cn' : 'en',
       moreVideoAttr: { crossOrigin: 'anonymous', playsInline: true },
       customType: {

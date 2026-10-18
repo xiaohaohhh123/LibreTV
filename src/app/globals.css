@@ -17,8 +17,8 @@
   --c-content: 26 26 26;
   --c-muted: 95 99 104;
   --c-faint: 107 114 128;
-  --c-accent: 35 107 95;
-  --c-accent-hover: 27 86 77;
+  --c-accent: 110 76 164;
+  --c-accent-hover: 91 58 143;
   --c-on-accent: 255 255 255;      /* accent 实心底上的文字色 */
   /* 语义状态色（亮色主题取偏深值，保证浅底上的对比度） */
   --c-danger: 220 38 38;           /* red-600 */
@@ -47,8 +47,8 @@
   --c-content: 236 239 237;
   --c-muted: 160 173 183;
   --c-faint: 144 158 172;
-  --c-accent: 139 213 197;
-  --c-accent-hover: 173 231 217;
+  --c-accent: 183 163 244;
+  --c-accent-hover: 207 191 255;
   /* 霓虹蓝底亮度过高（对白字仅 2.35:1），暗色下实心底改用深色文字 */
   --c-on-accent: 8 19 31;
   /* 语义状态色（暗色主题取中等明度值，保证深蓝黑底上的对比度） */
@@ -177,9 +177,9 @@ h1, h2, .heading-spaced {
   color: transparent;
 }
 
-/* 复用小鱼轮廓，字标保持清晰，不循环闪动。 */
+/* 蓝紫粉只作为品牌点缀，字标保持清晰，不循环闪动。 */
 .brand-logo { display: inline-flex; align-items: center; gap: 10px; user-select: none; }
-.brand-emblem { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 42px; height: 42px; border: 1px solid rgb(var(--c-accent) / .22); border-radius: 14px; background: #183831; }
+.brand-emblem { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 42px; height: 42px; border: 1px solid rgb(var(--c-accent) / .22); border-radius: 14px; background: #25253b; }
 .brand-lockup { display: flex; flex-direction: column; gap: 5px; }
 .brand-word { display: flex; align-items: center; gap: 6px; font-size: 23px; font-weight: 700; line-height: 1; letter-spacing: .03em; color: rgb(var(--c-content)); }
 .brand-tv { font-size: 10px; font-weight: 700; letter-spacing: .08em; color: rgb(var(--c-accent)); align-self: flex-start; margin-top: 2px; }
@@ -262,7 +262,7 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 
 /* 播放器保留原生能力，增加直接可达的倍速与全屏选集。 */
 .cinema-shell { color: #f4f6f5; }
-.cinema-shell .art-video-player { --art-theme: #8bd5c5; --art-control-height: 44px; }
+.cinema-shell .art-video-player { --art-theme: #b7a3f4; --art-control-height: 44px; }
 .cinema-shell .art-video-player .art-controls-left, .cinema-shell .art-video-player .art-controls-right { margin: 0 !important; }
 .cinema-shell .art-bottom { background: linear-gradient(transparent, #000c) bottom / 100% 120px no-repeat; padding: 28px 18px 8px; }
 .cinema-shell .art-controls { height: 44px; }
@@ -272,8 +272,8 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .cinema-shell .art-progress-inner { height: 3px; }
 .cinema-shell .art-settings { color: #f4f6f5; background: #152024f5; border: 1px solid #ffffff18; border-radius: 14px; }
 .cinema-bar-button { color: #f1f4f3; font: inherit; font-size: 13px; min-width: 44px; min-height: 44px; padding-inline: 8px; white-space: nowrap; }
-.cinema-bar-button:hover, .cinema-bar-button[aria-expanded=true] { color: #8bd5c5; }
-.cinema-shell button:focus-visible { outline: 2px solid #8bd5c5; outline-offset: -3px; border-radius: 8px; }
+.cinema-bar-button:hover, .cinema-bar-button[aria-expanded=true] { color: #b7a3f4; }
+.cinema-shell button:focus-visible { outline: 2px solid #b7a3f4; outline-offset: -3px; border-radius: 8px; }
 .cinema-overlays { position: absolute; inset: 0; z-index: 55; pointer-events: none; color: #f4f6f5; font-family: var(--font-sans-sc), 'Microsoft YaHei', sans-serif; }
 .cinema-overlays button, .cinema-overlays .cinema-panel { pointer-events: auto; }
 .cinema-topline { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 20px 68px 36px 22px; background: linear-gradient(#0009, transparent); transition: opacity .2s; }
@@ -288,12 +288,12 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .cinema-is-locked .art-bottom, .cinema-is-locked .art-mask { opacity: 0 !important; pointer-events: none !important; }
 .cinema-hint { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); padding: 10px 18px; max-width: 90%; border: 1px solid #ffffff1a; background: #101819dc; color: #f4f6f5; border-radius: 10px; font-size: 13px; white-space: nowrap; }
 .cinema-skip { position: absolute; right: 22px; bottom: 96px; padding: 10px 18px; border: 1px solid #ffffff35; border-radius: 10px; background: #101819b8; color: #fff; font-size: 13px; min-height: 40px; }
-.cinema-skip:hover { background: #8bd5c5; color: #0d201d; }
-.cinema-poster { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: radial-gradient(ellipse at 50% 40%, #183831, #080e12 70%); pointer-events: none; }
+.cinema-skip:hover { background: #b7a3f4; color: #20182e; }
+.cinema-poster { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: radial-gradient(ellipse at 50% 40%, #25253b, #080e12 70%); pointer-events: none; }
 .cinema-poster span { color: #c8d9d4; font-size: 15px; letter-spacing: .12em; }
 .cinema-poster small { color: #8b9f99; font-size: 11px; }
 .cinema-panel-dismiss { position: absolute; inset: 0; width: 100%; cursor: default; }
-.cinema-panel { position: absolute; right: 18px; bottom: 76px; width: 290px; max-width: calc(100% - 24px); padding: 18px; background: #142024; border: 1px solid #ffffff1f; border-radius: 16px; box-shadow: 0 18px 60px #0006; pointer-events: auto; }
+.cinema-panel { position: absolute; right: 18px; bottom: 76px; width: 290px; max-width: calc(100% - 24px); padding: 18px; background: #191e2d; border: 1px solid #ffffff1f; border-radius: 16px; box-shadow: 0 18px 60px #0006; pointer-events: auto; }
 .cinema-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cinema-panel-heading strong { font-size: 15px; font-weight: 500; }
 .cinema-panel-close { width: 36px; height: 36px; display: inline-flex; justify-content: center; align-items: center; margin: -6px -6px -6px 0; color: #acbab7; }
@@ -301,8 +301,8 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .cinema-panel-footnote { margin-top: 14px; }
 .cinema-rate-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px; }
 .cinema-rate-options button, .cinema-episode-options button { border-radius: 8px; background: #ffffff08; border: 1px solid #ffffff0e; min-height: 42px; font-size: 12px; color: #c9d4d1; padding: 6px; }
-.cinema-rate-options button:hover, .cinema-episode-options button:hover { border-color: #8bd5c56b; }
-.cinema-rate-options button[aria-pressed=true], .cinema-episode-options button[aria-current=true] { background: #8bd5c5; color: #10241f; border-color: #8bd5c5; font-weight: 500; }
+.cinema-rate-options button:hover, .cinema-episode-options button:hover { border-color: #b7a3f46b; }
+.cinema-rate-options button[aria-pressed=true], .cinema-episode-options button[aria-current=true] { background: #b7a3f4; color: #20182e; border-color: #b7a3f4; font-weight: 500; }
 .cinema-episode-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; overflow-y: auto; max-height: min(50vh, 350px); margin-top: 16px; }
 .cinema-panel-open .art-bottom { opacity: 1 !important; visibility: visible !important; transform: none !important; }
 @media (max-width: 639px) {

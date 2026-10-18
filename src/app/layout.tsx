@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     template: '%s - 小鱼TV',
   },
   description:
-    '小鱼TV 是一个在线视频搜索平台，无广告、安全，提供来自多个视频源的内容搜索与观看服务，无需注册即可使用。',
+    '小鱼的私人放映室，提供多来源影视搜索、播放、续播与选集，陪你轻松看喜欢的节目。',
   manifest: '/manifest.webmanifest',
   // 各尺寸由同一小鱼矢量图导出，网页和添加到主屏幕时保持一致。
   icons: {
