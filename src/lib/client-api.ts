@@ -16,6 +16,7 @@ export class ApiError extends Error {
 }
 
 const UNAUTHORIZED_EVENT = 'libretv:unauthorized';
+let authGeneration = 0;
 
 /** 单条测活结果（/api/live/probe，JSON 与 NDJSON 流共用同一结构） */
 export interface LiveProbeResult {
@@ -45,13 +46,13 @@ export function onUnauthorized(handler: (event: CustomEvent) => void): () => voi
 }
 
 /** 401/503 统一处理：分发全局事件打开登录框并抛 ApiError（普通与流式请求共用） */
-function throwForAuthStatus(res: Response): void {
+function throwForAuthStatus(res: Response, requestGeneration: number): void {
   if (res.status === 401) {
-    window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+    if (requestGeneration === authGeneration) window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
     throw new ApiError('需要登录', 401);
   }
   if (res.status === 503) {
-    window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT, { detail: 'setup' }));
+    if (requestGeneration === authGeneration) window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT, { detail: 'setup' }));
     throw new ApiError('服务器未配置密码', 503);
   }
 }
@@ -86,6 +87,7 @@ async function consumeNdjson<T>(res: Response, onEvent: (event: T) => void): Pro
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const requestGeneration = authGeneration;
   let res: Response;
   try {
     res = await fetch(url, init);
@@ -93,7 +95,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
     throw new ApiError('网络请求失败，请检查网络连接', 0);
   }
-  throwForAuthStatus(res);
+  throwForAuthStatus(res, requestGeneration);
   if (!res.ok) {
     let msg = `请求失败 (${res.status})`;
     try {
@@ -108,12 +110,16 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   status: () => request<AuthStatusResponse>('/api/status'),
 
-  login: (password: string) =>
-    request<{ success: boolean }>('/api/auth', {
+  login: async (password: string) => {
+    const result = await request<{ success: boolean }>('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
-    }),
+    });
+    // 登录前发出的迟到401仍失败，但不能覆盖刚建立的新会话。
+    if (result.success) authGeneration++;
+    return result;
+  },
 
   logout: () => request<{ success: boolean }>('/api/auth', { method: 'DELETE' }),
 
@@ -251,13 +257,14 @@ export const api = {
     onResult: (result: LiveProbeResult) => void,
     signal?: AbortSignal
   ): Promise<void> => {
+    const requestGeneration = authGeneration;
     const res = await fetch('/api/live/probe?stream=1', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ urls }),
       signal,
     });
-    throwForAuthStatus(res);
+    throwForAuthStatus(res, requestGeneration);
     if (!res.ok || !res.body) throw new ApiError(`请求失败 (${res.status})`, res.status);
 
     await consumeNdjson<LiveProbeResult>(res, onResult);
@@ -278,13 +285,14 @@ async function searchStream(
   onSource: (outcome: SourceSearchOutcome) => void,
   signal?: AbortSignal
 ): Promise<SearchResponse> {
+  const requestGeneration = authGeneration;
   const res = await fetch('/api/search?stream=1', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ wd, sources, filterAdult }),
     signal,
   });
-    throwForAuthStatus(res);
+    throwForAuthStatus(res, requestGeneration);
     if (!res.ok || !res.body) throw new ApiError(`请求失败 (${res.status})`, res.status);
 
     let final: SearchResponse | undefined;
