@@ -51,20 +51,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState<string | null>(null);
   const [localPreview, setLocalPreview] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const authRevision = useRef(0);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // 与 Providers 共用同一 query key 与缓存，避免 /api/status 被请求两次
   useEffect(() => {
     let cancelled = false;
+    const revision = authRevision.current;
     queryClient
       .fetchQuery({ queryKey: STATUS_QUERY_KEY, queryFn: () => api.status() })
       .then((s) => {
         if (cancelled) return;
-        setVerified(s.verified);
-        setSetupRequired(!s.passwordRequired && !s.localPreview);
         setLocalPreview(Boolean(s.localPreview));
         setVersion(s.version);
+        // 初始状态是旧快照，不能覆盖此后发生的登录、登出或会话失效。
+        if (revision !== authRevision.current) return;
+        setVerified(s.verified);
+        setSetupRequired(!s.passwordRequired && !s.localPreview);
         setChecked(true);
         setModalOpen(!s.verified);
       })
@@ -79,6 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(
     () =>
       onUnauthorized((event) => {
+        authRevision.current++;
+        setChecked(true);
         const setup = (event as CustomEvent).detail === 'setup';
         setSetupRequired(setup);
         setVerified(false);
@@ -91,9 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     if (localPreview) { toast('本机预览无需登录', 'info'); return; }
+    authRevision.current++;
     try {
       await api.logout();
     } finally {
+      setChecked(true);
       setVerified(false);
       setModalOpen(true);
       toast('已退出登录', 'info');
@@ -101,6 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [toast, localPreview]);
 
   const handleLoginSuccess = useCallback(async () => {
+    authRevision.current++;
+    setChecked(true);
     setVerified(true);
     setSetupRequired(false);
     setModalOpen(false);
