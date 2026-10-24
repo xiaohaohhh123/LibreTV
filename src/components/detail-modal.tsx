@@ -14,6 +14,10 @@ import { copyToClipboard } from '@/lib/clipboard';
 import { EmptyState, ErrorState, LoadingState } from './states';
 import { useFocusTrap } from './use-focus-trap';
 import { Icon } from './icon';
+import { WatchlistButton } from './watchlist-button';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
+import { watchlistFromSearch } from '@/lib/watchlist';
 
 /**
  * 详情弹窗：剧集列表 + 排序 + 复制链接。
@@ -31,6 +35,7 @@ export function DetailModal({ item, onClose }: { item: SearchResultItem | null; 
   const [posterFailed, setPosterFailed] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const previous = useLiveQuery(() => item ? db.history.get(`${item.sourceKey}_${item.vodId}`).catch(() => undefined) : undefined, [item?.sourceKey, item?.vodId]);
 
   // 打开时把焦点移入弹窗、Tab 圈闭在弹窗内、关闭后归还焦点
   useFocusTrap(Boolean(item), panelRef);
@@ -92,7 +97,7 @@ export function DetailModal({ item, onClose }: { item: SearchResultItem | null; 
   const episodes = detail ? (reversed ? [...detail.episodes].reverse() : detail.episodes) : [];
   const info = detail?.videoInfo;
 
-  const play = (index: number) => {
+  const play = (index: number, position?: number) => {
     if (!detail || !detail.episodes[index]) return;
     addSearchHistory(item.name).catch(() => {});
     router.push(
@@ -102,6 +107,7 @@ export function DetailModal({ item, onClose }: { item: SearchResultItem | null; 
         index,
         title: item.name,
         sourceUrl: item.sourceUrl,
+        position,
       })
     );
   };
@@ -154,6 +160,10 @@ export function DetailModal({ item, onClose }: { item: SearchResultItem | null; 
         </div>
 
         <div className="p-5 pt-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs text-faint">先收藏好，把喜欢留给下次。</span>
+            <WatchlistButton item={watchlistFromSearch(item)} />
+          </div>
           {loading && <LoadingState label="正在获取剧集信息..." />}
 
           {!loading && error && <ErrorState message={error || '获取失败'} />}
@@ -191,6 +201,12 @@ export function DetailModal({ item, onClose }: { item: SearchResultItem | null; 
 
               {episodes.length > 0 ? (
                 <>
+                  <div className="mb-5 flex flex-wrap items-center gap-3">
+                    {previous && previous.playbackPosition > 10 && previous.episodeIndex < detail.episodes.length && (previous.duration <= 0 || previous.playbackPosition < previous.duration - 5) ? (
+                      <button className="btn-primary" onClick={() => play(previous.episodeIndex, previous.playbackPosition)}>继续观看 · {detail.episodeNames?.[previous.episodeIndex] || `第${previous.episodeIndex + 1}集`}</button>
+                    ) : <button className="btn-primary" onClick={() => play(0)}>开始播放</button>}
+                    <span className="text-xs text-muted">或在下方选择想看的集 / 期</span>
+                  </div>
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <div className="flex items-center gap-2">
                       <button

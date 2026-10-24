@@ -262,6 +262,7 @@ function WatchContent() {
                   outroNextSeconds={store.outroNextSeconds}
                   onRequestNext={currentIndex + 1 < episodes.length ? () => goEpisode(currentIndex + 1) : undefined}
                   getRestorePosition={getRestorePosition}
+                  onPositionChange={(position) => { playbackPosition.current = position; }}
                   onTimeUpdate={handleProgress}
                   onPause={handleProgress}
                   onEnded={handleEnded}
@@ -344,7 +345,7 @@ function WatchContent() {
                 <EmptyState variant="plain" title={detailQuery.isError ? '获取剧集失败' : '暂无剧集信息'} />
               )
             ) : (
-              <div className="grid grid-cols-5 lg:grid-cols-4 gap-1.5 max-h-[65vh] overflow-y-auto scrollbar-thin pr-1">
+              <div className="grid grid-cols-4 min-[360px]:grid-cols-5 lg:grid-cols-4 gap-1.5 max-h-[65vh] overflow-y-auto scrollbar-thin pr-1">
                 {orderedEpisodes.map((realIndex) => (
                   <EpisodeButton
                     key={realIndex}

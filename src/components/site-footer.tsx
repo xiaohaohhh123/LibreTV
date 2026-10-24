@@ -99,11 +99,13 @@ export function SiteFooter() {
           rel="noopener noreferrer"
           className="group relative inline-block cursor-help hover:text-accent"
         >
-          小鱼TV{version ? ` v${version}` : ''}
+          基于 LibreTV{version ? ` v${version}` : ''}
           {version && <UpdateTip update={upstreamUpdate} />}
         </a>
         {' · '}
-        AGPL-3.0 License
+        <a href="https://github.com/xiaohaohhh123/LibreTV" target="_blank" rel="noopener noreferrer" className="hover:text-accent">私人TV源码</a>
+        {' · '}
+        AGPL-3.0-or-later
       </p>
     </footer>
   );

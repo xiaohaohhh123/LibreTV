@@ -101,7 +101,7 @@ export function parseDetail(
     videoInfo: {
       title: str(vod.vod_name),
       cover: str(vod.vod_pic),
-      desc: str(vod.vod_content),
+      desc: str(vod.vod_content)?.replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&#160;/gi, ' ').replace(/\s+/g, ' ').trim(),
       typeName: str(vod.type_name),
       year: str(vod.vod_year),
       area: str(vod.vod_area),

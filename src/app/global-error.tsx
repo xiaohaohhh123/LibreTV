@@ -22,30 +22,32 @@ export default function GlobalError({
           alignItems: 'center',
           justifyContent: 'center',
           gap: 12,
-          background: '#0b101a',
-          color: '#c9d1d9',
+          background: '#0B101A',
+          color: '#E6F2FF',
           fontFamily: 'system-ui, sans-serif',
           textAlign: 'center',
           padding: 16,
         }}
       >
-        <p style={{ margin: 0, fontSize: 14 }}>应用发生严重错误，请刷新页面重试。</p>
+        <h1 style={{ margin: 0, fontSize: 24, color: '#00B8E6' }}>私人TV</h1>
+        <p style={{ margin: 0, fontSize: 14 }}>放映暂时中断，请重试。</p>
         <button
           onClick={reset}
           style={{
-            padding: '6px 16px',
-            borderRadius: 6,
-            border: '1px solid #2a3441',
-            background: '#151b26',
-            color: '#c9d1d9',
+            minHeight: 44,
+            padding: '8px 24px',
+            borderRadius: 10,
+            border: '1px solid #00B8E6',
+            background: '#00B8E6',
+            color: '#0B101A',
             cursor: 'pointer',
           }}
         >
-          刷新
+          重新尝试
         </button>
         {/* digest 用于线上日志定位，不含敏感信息，展示无妨 */}
         {error.digest && (
-          <p style={{ margin: 0, fontSize: 11, color: '#6b7f99' }}>错误编号：{error.digest}</p>
+          <p style={{ margin: 0, fontSize: 11, color: '#8599B2' }}>错误编号：{error.digest}</p>
         )}
       </body>
     </html>

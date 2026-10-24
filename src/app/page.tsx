@@ -17,8 +17,9 @@ import { EmptyState } from '@/components/states';
 import { Icon } from '@/components/icon';
 import { SiteFooter } from '@/components/site-footer';
 import { XIAOYU_SEARCH_EASTER_EGG } from '@/lib/xiaoyu-caring';
-import { XiaoyuGreeting } from '@/components/xiaoyu-greeting';
 import { ContinueWatching } from '@/components/continue-watching';
+import { TonightPicker } from '@/components/tonight-picker';
+import { HomeCareNote } from '@/components/viewing-care';
 
 /**
  * 首页：搜索（URL ?s= 驱动，可后退/分享）+ 豆瓣推荐。
@@ -53,10 +54,11 @@ function HomeContent() {
   /** 流式搜索中已结算的源（data 就绪前用于增量渲染） */
   const [streamedOutcomes, setStreamedOutcomes] = useState<SourceSearchOutcome[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const composingRef = useRef(false);
 
   // URL 驱动搜索：?s= 变化时回填输入框
   useEffect(() => {
-    if (urlQuery) setInput(urlQuery);
+    setInput(urlQuery);
   }, [urlQuery]);
 
   // 源名回显：失败/停用提示里显示友好名称而非裸 key
@@ -102,6 +104,7 @@ function HomeContent() {
         signal,
         // 逐源结算即更新：结果边搜边渲染，同时滚动健康度
         onSource: (outcome) => {
+          if (signal.aborted) return;
           setStreamedOutcomes((prev) => [...prev, outcome]);
           for (const ev of useAppStore.getState().recordSourceHealth([outcome])) {
             toast(
@@ -172,33 +175,20 @@ function HomeContent() {
   useEffect(() => setVisibleCount(RESULT_PAGE_SIZE), [groups]);
 
   return (
-    <div className="dream-home min-h-screen flex flex-col">
+    <div className="private-tv-home min-h-screen flex flex-col">
       <Header />
 
       <main className="relative flex-1 max-w-6xl w-full mx-auto px-4 py-6">
-        {/* 首屏氛围渐变 */}
-        {!urlQuery && (
-          <div
-            aria-hidden
-            className="dream-aurora"
-          />
-        )}
-
         {/* 搜索区 */}
-        <section className={cn('home-search flex flex-col items-center', urlQuery ? 'mb-6' : 'home-intro')}>
-          {!urlQuery && (
-            <header className="text-center mb-7">
-              <XiaoyuGreeting />
-            </header>
-          )}
-          {urlQuery && <h1 className="sr-only">小鱼TV 视频搜索</h1>}
+        <section className="home-search mb-4" aria-labelledby="search-title">
+          <div className="home-search-heading"><h1 id="search-title" className="text-xl font-semibold">今天，想看点什么？</h1><span>电影 · 剧集 · 综艺</span></div>
           {/* 定位容器比胶囊宽一圈：浮层按它的宽度对齐，接缝处不会与胶囊边框错位 1px */}
-          <div ref={searchHistory.containerRef} className="relative w-full max-w-2xl">
+          <div ref={searchHistory.containerRef} className="relative w-full">
             <form
               className="w-full"
               onSubmit={(e) => {
                 e.preventDefault();
-                runSearch(input);
+                if (!composingRef.current) runSearch(input);
               }}
             >
               {/* 输入框与搜索按钮合并为一个胶囊：内部无边框，焦点态由容器统一表达；
@@ -220,7 +210,7 @@ function HomeContent() {
                 <input
                   ref={inputRef}
                   className="flex-1 min-w-0 pr-2 bg-transparent text-sm text-content placeholder:text-faint focus:outline-none"
-                  placeholder="输入影片名称..."
+                  placeholder="搜索电影、剧集、综艺…"
                   value={input}
                   maxLength={100}
                   onChange={(e) => {
@@ -228,7 +218,12 @@ function HomeContent() {
                     searchHistory.resetActive();
                   }}
                   onFocus={searchHistory.onFocus}
-                  onKeyDown={(e) => searchHistory.onKeyDown(e, pickHistory)}
+                  onCompositionStart={() => { composingRef.current = true; }}
+                  onCompositionEnd={() => { composingRef.current = false; }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.nativeEvent.isComposing) e.preventDefault();
+                    searchHistory.onKeyDown(e, pickHistory);
+                  }}
                   role="combobox"
                   aria-label="搜索影片"
                   aria-expanded={searchHistory.visible}
@@ -282,6 +277,7 @@ function HomeContent() {
               />
             )}
           </div>
+          <HomeCareNote />
         </section>
 
         {/* 搜索结果 */}
@@ -356,6 +352,11 @@ function HomeContent() {
               </>
             ) : isSearching ? (
               <ResultsSkeleton />
+            ) : searchQuery.isError || (failures.length > 0 && failures.length >= selectedSources.length) ? (
+              <div className="search-status" role="status">
+                <EmptyState icon="search" title="这次没能连上可用片源" description="来源请求失败与没有这部片不同。可以重试，或在设置里检查已启用的来源。" className="!py-8" />
+                <button className="btn-primary" onClick={() => searchQuery.refetch()}>重新搜索</button>
+              </div>
             ) : (
               <EmptyState
                 icon="search"
@@ -369,7 +370,7 @@ function HomeContent() {
 
         {/* 首页推荐（有搜索时隐藏） */}
         {!urlQuery && (
-          <><ContinueWatching /><RecommendSection
+          <><ContinueWatching /><div className="mb-2 flex items-center justify-between gap-3"><h2 className="home-section-title text-lg font-semibold">发现好片</h2><TonightPicker onPick={(title) => { setInput(title); runSearch(title); }} onOpen={setDetailItem} /></div><RecommendSection
             onPick={(title) => {
               setInput(title);
               runSearch(title);
@@ -413,7 +414,7 @@ function NoSourceGuide({ hasSources = false }: { hasSources?: boolean }) {
           <>点击右上角「设置」，勾选要参与搜索的点播源后重新搜索。</>
         ) : (
           <>
-            小鱼TV 不内置任何采集站。点击右上角「设置 → 添加 API」，填入一个
+            私人TV不内置任何采集站。点击右上角「设置 → 添加 API」，填入一个
             Apple CMS 采集站地址（如 <code className="text-accent text-xs">https://example.com/api.php/provide/vod</code>），
             勾选后即可开始搜索。
           </>

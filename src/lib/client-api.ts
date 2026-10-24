@@ -287,8 +287,7 @@ async function searchStream(
     throwForAuthStatus(res);
     if (!res.ok || !res.body) throw new ApiError(`请求失败 (${res.status})`, res.status);
 
-    // done 事件缺失（流被截断）时退化为空结果，不让整次搜索报错
-    let final: SearchResponse = { list: [], failures: [] };
+    let final: SearchResponse | undefined;
     await consumeNdjson<SearchStreamEvent>(res, (event) => {
       if (event.type === 'source') {
         onSource(event);
@@ -296,6 +295,7 @@ async function searchStream(
         final = { list: event.list, failures: event.failures };
       }
     });
+    if (!final) throw new ApiError('搜索连接中断，请重新搜索', 0);
     return final;
   }
 

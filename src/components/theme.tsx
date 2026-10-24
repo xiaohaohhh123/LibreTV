@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 /**
  * 主题上下文：light / dark / system，持久化到 localStorage，默认 dark。
@@ -39,16 +39,21 @@ function apply(choice: ThemeChoice): 'light' | 'dark' {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeChoice>('dark');
   const [resolved, setResolved] = useState<'light' | 'dark'>('dark');
+  const currentTheme = useRef<ThemeChoice>('dark');
 
   useEffect(() => {
-    const stored = (localStorage.getItem(STORAGE_KEY) as ThemeChoice | null) || 'dark';
+    let stored: ThemeChoice = 'dark';
+    try {
+      const value = localStorage.getItem(STORAGE_KEY);
+      if (value === 'light' || value === 'dark' || value === 'system') stored = value;
+    } catch { /* 存储受限时，当前页面仍可切换主题。 */ }
+    currentTheme.current = stored;
     setThemeState(stored);
     setResolved(apply(stored));
 
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => {
-      const current = (localStorage.getItem(STORAGE_KEY) as ThemeChoice | null) || 'dark';
-      if (current === 'system') {
+      if (currentTheme.current === 'system') {
         setResolved(apply('system'));
       }
     };
@@ -57,7 +62,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setTheme = useCallback((t: ThemeChoice) => {
-    localStorage.setItem(STORAGE_KEY, t);
+    try { localStorage.setItem(STORAGE_KEY, t); } catch { /* 当前页面仍生效，不承诺刷新保留。 */ }
+    currentTheme.current = t;
     setThemeState(t);
     setResolved(apply(t));
   }, []);

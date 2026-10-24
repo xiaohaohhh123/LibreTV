@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { buildImageCandidates } from '@/lib/utils';
 
 interface SmartImageProps {
@@ -31,26 +31,55 @@ export function SmartImage({
   onExhausted,
 }: SmartImageProps) {
   const candidates = buildImageCandidates(url, mode, customProxy);
-  const [idx, setIdx] = useState(0);
+  const identity = `${url ?? ''}\n${mode}\n${customProxy}`;
+  const [attempt, setAttempt] = useState({ identity, index: 0 });
+  const idx = attempt.identity === identity ? attempt.index : 0;
+  const imageRef = useRef<HTMLImageElement>(null);
+  const advance = useCallback(() => setAttempt((current) => {
+    const currentIndex = current.identity === identity ? current.index : 0;
+    return currentIndex === idx ? { identity, index: idx + 1 } : current;
+  }), [identity, idx]);
 
-  // 地址或加载方式变化时重置降级进度
-  useEffect(() => setIdx(0), [url, mode, customProxy]);
   useEffect(() => {
     if (idx >= candidates.length) onExhausted?.();
     // 候选数组随 url/mode 变化，length 是充分的稳定信号
   }, [idx, candidates.length, onExhausted]);
 
   const src = candidates[idx];
+  useEffect(() => {
+    const element = imageRef.current;
+    if (!element || !src) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let observer: IntersectionObserver | undefined;
+    const start = () => {
+      if (element.complete && element.naturalWidth > 0) return;
+      // 挂起的图床不会触发 onError；只给即将进入视口的图计时，保留懒加载。
+      timer = setTimeout(() => {
+        if (!element.complete || element.naturalWidth === 0) advance();
+      }, 6500);
+    };
+    if (loading === 'eager' || typeof IntersectionObserver === 'undefined') start();
+    else {
+      observer = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) { start(); observer?.disconnect(); }
+      }, { rootMargin: '200px' });
+      observer.observe(element);
+    }
+    return () => { clearTimeout(timer); observer?.disconnect(); };
+  }, [advance, src, loading]);
+
   if (!src) return null;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      key={src}
+      ref={imageRef}
       src={src}
       alt={alt}
       className={className}
       loading={loading}
       referrerPolicy="no-referrer"
-      onError={() => setIdx((i) => i + 1)}
+      onError={advance}
     />
   );
 }

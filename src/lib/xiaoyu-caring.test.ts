@@ -1,5 +1,34 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { getBufferingCare, viewingDelta } from './xiaoyu-caring';
+import { getBufferingCare, getCareMoment, getTimeGreeting, viewingDelta } from './xiaoyu-caring';
+
+describe('日常小关心', () => {
+  it('在当地饭点显示明确用餐关心，其他时间喝水，深夜休息', () => {
+    for (const hour of [6, 9, 11, 13, 17, 20]) {
+      const moment = getCareMoment(hour);
+      expect(moment.kind).toBe('meal');
+      expect(moment.title + moment.body).toMatch(/早餐|午饭|晚饭|吃|餐/);
+    }
+    for (const hour of [10, 14, 16, 21, 22]) {
+      expect(getCareMoment(hour).kind).toBe('water');
+      expect(getCareMoment(hour).title + getCareMoment(hour).body).toMatch(/水/);
+    }
+    for (const hour of [23, 0, 5]) {
+      expect(getCareMoment(hour).kind).toBe('rest');
+      expect(getCareMoment(hour).body).toMatch(/休息/);
+    }
+  });
+  it('饭点边界与开场纸条一致，问候也能按设备小时确定', () => {
+    expect(getCareMoment(5).kind).toBe('rest');
+    expect(getCareMoment(6).label).toBe('早餐时间');
+    expect(getCareMoment(10).kind).toBe('water');
+    expect(getCareMoment(11).label).toBe('午餐时间');
+    expect(getCareMoment(14).kind).toBe('water');
+    expect(getCareMoment(17).label).toBe('晚餐时间');
+    expect(getCareMoment(21).kind).toBe('water');
+    expect(getTimeGreeting(7).title).toBe('早上好');
+    expect(getTimeGreeting(0).title).toBe('夜深了');
+  });
+});
 
 describe('开场小纸条', () => {
   afterEach(() => vi.restoreAllMocks());

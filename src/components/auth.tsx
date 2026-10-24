@@ -7,6 +7,8 @@ import { applyEnvPresets } from '@/lib/subscription-sync';
 import type { AuthStatusResponse } from '@/lib/types';
 import { useToast } from './toast';
 import { BrandLogo } from './brand-logo';
+import { Icon } from './icon';
+import { useFocusTrap } from './use-focus-trap';
 
 /**
  * 认证上下文：
@@ -23,6 +25,7 @@ interface AuthContextValue {
   setupRequired: SetupRequired;
   /** /api/status 返回的应用版本（构建时从 package.json 注入） */
   version: string | null;
+  localPreview: boolean;
   openLogin: () => void;
   logout: () => Promise<void>;
 }
@@ -32,6 +35,7 @@ const AuthContext = createContext<AuthContextValue>({
   verified: false,
   setupRequired: false,
   version: null,
+  localPreview: false,
   openLogin: () => {},
   logout: async () => {},
 });
@@ -45,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [verified, setVerified] = useState(false);
   const [setupRequired, setSetupRequired] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -57,9 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((s) => {
         if (cancelled) return;
         setVerified(s.verified);
-        setSetupRequired(!s.passwordRequired);
+        setSetupRequired(!s.passwordRequired && !s.localPreview);
+        setLocalPreview(Boolean(s.localPreview));
         setVersion(s.version);
         setChecked(true);
+        setModalOpen(!s.verified);
       })
       .catch(() => {
         if (!cancelled) setChecked(true);
@@ -80,16 +87,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const openLogin = useCallback(() => setModalOpen(true), []);
+  const openLogin = useCallback(() => { if (!localPreview) setModalOpen(true); }, [localPreview]);
 
   const logout = useCallback(async () => {
+    if (localPreview) { toast('本机预览无需登录', 'info'); return; }
     try {
       await api.logout();
     } finally {
       setVerified(false);
+      setModalOpen(true);
       toast('已退出登录', 'info');
     }
-  }, [toast]);
+  }, [toast, localPreview]);
 
   const handleLoginSuccess = useCallback(async () => {
     setVerified(true);
@@ -116,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [toast, queryClient]);
 
   return (
-    <AuthContext.Provider value={{ checked, verified, setupRequired, version, openLogin, logout }}>
+    <AuthContext.Provider value={{ checked, verified, setupRequired, version, localPreview, openLogin, logout }}>
       {children}
       {modalOpen && (
         <LoginModal
@@ -141,10 +150,16 @@ function LoginModal({
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(true, panelRef);
 
   useEffect(() => {
     inputRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
   }, []);
 
   useEffect(() => {
@@ -174,51 +189,69 @@ function LoginModal({
 
   return (
     <div
-      className="dream-access-overlay fixed inset-0 z-[95] flex items-center justify-center bg-black/80 animate-fade-in"
+      className="access-overlay fixed inset-0 z-[95] flex items-center justify-center overflow-y-auto bg-black/80 p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="dream-access-card bg-surface-raised rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl"
+        ref={panelRef}
+        tabIndex={-1}
+        className="access-card relative my-auto w-full max-w-md rounded-2xl border border-line bg-surface-raised p-6 shadow-2xl sm:p-9"
         role="dialog"
         aria-modal="true"
-        aria-label={setupRequired ? '需要配置密码' : '访问验证'}
+        aria-labelledby="access-title"
+        aria-describedby="access-description"
       >
+        <button type="button" onClick={onClose} className="btn-ghost absolute right-2 top-2 min-h-11 min-w-11 p-2" aria-label="关闭登录">
+          <Icon name="close" />
+        </button>
         {setupRequired ? (
           <>
-            <h2 className="text-lg font-semibold text-content mb-3">需要配置密码</h2>
-            <p className="text-sm text-muted leading-relaxed">
+            <h2 id="access-title" className="mb-3 mt-4 text-lg font-semibold text-content">私人TV 尚未配置访问密码</h2>
+            <p id="access-description" className="text-sm text-muted leading-relaxed">
               为确保安全，必须设置 <code className="text-accent">PASSWORD</code> 环境变量才能使用本服务。
               请联系管理员在部署配置中添加该变量后重启服务。
             </p>
           </>
         ) : (
           <>
-            <div className="flex justify-center mb-3 text-2xl">
+            <div className="mb-8 mt-3 flex justify-center text-2xl">
               <BrandLogo />
             </div>
-            <h2 className="text-lg font-semibold text-content mb-1 text-center">访问验证</h2>
-            <p className="text-sm text-muted mb-4 text-center">请输入密码继续访问</p>
+            <h2 id="access-title" className="mb-2 text-center text-xl font-semibold text-content">访问私人TV</h2>
+            <p id="access-description" className="mb-6 text-center text-sm leading-relaxed text-muted">输入站点访问密码</p>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 submit();
               }}
             >
+              <label htmlFor="access-password" className="mb-2 block text-sm font-medium text-content">访问密码</label>
+              <div className="relative">
               <input
                 ref={inputRef}
-                type="password"
+                id="access-password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="input w-full"
-                placeholder="密码"
+                className="input min-h-12 w-full pr-16"
+                placeholder="输入访问密码"
                 autoComplete="current-password"
+                required
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'access-error' : undefined}
               />
-              {error && <p className="mt-2 text-sm text-danger">{error}</p>}
-              <button type="submit" className="btn-primary w-full mt-4" disabled={loading || !password.trim()}>
-                {loading ? '验证中...' : '进入'}
+              <button type="button" className="absolute inset-y-0 right-1 min-h-11 min-w-12 px-2 text-sm text-muted hover:text-content" aria-controls="access-password" aria-label={showPassword ? '隐藏密码' : '显示密码'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? '隐藏' : '显示'}
               </button>
+              </div>
+              {error && <p id="access-error" role="alert" className="mt-2 text-sm text-danger">{error}</p>}
+              <button type="submit" className="btn-primary mt-5 min-h-12 w-full" disabled={loading || !password.trim()} aria-busy={loading}>
+                {loading ? '正在验证…' : '进入私人TV'}
+              </button>
+              <p className="mt-5 text-center text-xs leading-relaxed text-faint">记录与片单保存在当前浏览器，不需要注册。</p>
             </form>
           </>
         )}

@@ -1,12 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { resolveSource, useAppStore } from '@/lib/store';
 import type { SearchResultItem } from '@/lib/types';
 import { VideoCard } from '@/components/video-card';
 import { DetailModal } from '@/components/detail-modal';
 import { EmptyState, Spinner } from '@/components/states';
 import { isAdultContent } from '@/lib/cms-parser';
+import { Header } from '@/components/header';
+import { SiteFooter } from '@/components/site-footer';
 
 export interface BrowseCategory {
   id: number;
@@ -37,6 +39,9 @@ export default function BrowsePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [detailItem, setDetailItem] = useState<SearchResultItem | null>(null);
+  const pendingRequest = useRef<AbortController | null>(null);
+  const requestVersion = useRef(0);
+  useEffect(() => () => { requestVersion.current++; pendingRequest.current?.abort(); }, []);
 
   const activeSource = useMemo(
     () => enabledSources.find((s) => s.key === sourceKey) ?? enabledSources[0] ?? null,
@@ -46,9 +51,13 @@ export default function BrowsePage() {
   const fetchCategories = useCallback(async (sourceKeyValue: string) => {
     const src = enabledSources.find((s) => s.key === sourceKeyValue);
     if (!src) return;
+    pendingRequest.current?.abort();
+    const version = ++requestVersion.current;
     setLoading(true);
     setError('');
+    setTypeId(null);
     const controller = new AbortController();
+    pendingRequest.current = controller;
     const timer = setTimeout(() => controller.abort(), 20000);
     try {
       const res = await fetch('/api/browse', {
@@ -58,6 +67,7 @@ export default function BrowsePage() {
         signal: controller.signal,
       });
       const data = await res.json();
+      if (version !== requestVersion.current) return;
       if (!data.ok) throw new Error(data.error || '获取分类失败');
       // 前端兜底：再次过滤成人分类（API 层已过滤）
       const cats: BrowseCategory[] = (data.categories ?? []).filter(
@@ -66,6 +76,7 @@ export default function BrowsePage() {
       setState({ categories: cats, list: [], page: 1, pagecount: 1 });
       setTypeId(cats[0]?.id ?? null);
     } catch (err) {
+      if (version !== requestVersion.current) return;
       const msg = err instanceof Error
         ? (err.name === 'AbortError' ? '请求超时，换个片源试试' : err.message)
         : '获取分类失败';
@@ -73,13 +84,18 @@ export default function BrowsePage() {
       setState({ categories: [], list: [], page: 1, pagecount: 1 });
     } finally {
       clearTimeout(timer);
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   }, [enabledSources]);
 
   const fetchList = useCallback(async (sourceKeyValue: string, tid: number, pg: number) => {
     const src = enabledSources.find((s) => s.key === sourceKeyValue);
     if (!src) return;
+    pendingRequest.current?.abort();
+    const version = ++requestVersion.current;
+    const controller = new AbortController();
+    pendingRequest.current = controller;
+    const timer = setTimeout(() => controller.abort(), 20000);
     setLoading(true);
     setError('');
     try {
@@ -87,8 +103,10 @@ export default function BrowsePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: { key: src.key, name: src.name, url: src.url }, typeId: tid, page: pg }),
+        signal: controller.signal,
       });
       const data = await res.json();
+      if (version !== requestVersion.current) return;
       if (!data.ok) throw new Error(data.error || '获取列表失败');
       setState((prev) => ({
         ...prev,
@@ -97,9 +115,11 @@ export default function BrowsePage() {
         pagecount: data.pagecount ?? 1,
       }));
     } catch (err) {
+      if (version !== requestVersion.current) return;
       setError(err instanceof Error ? err.message : '获取列表失败');
     } finally {
-      setLoading(false);
+      clearTimeout(timer);
+      if (version === requestVersion.current) setLoading(false);
     }
   }, [enabledSources]);
 
@@ -126,9 +146,10 @@ export default function BrowsePage() {
   };
 
   return (
-    <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4">
+    <div className="min-h-screen flex flex-col"><Header showSearch />
+    <main className="library-page flex-1 max-w-6xl w-full mx-auto px-4 py-8">
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        <h1 className="text-xl font-bold">片库浏览</h1>
+        <div className="mr-auto"><p className="eyebrow">YOUR NEXT STORY</p><h1 className="text-2xl font-semibold">在片库里，慢慢挑</h1></div>
         {enabledSources.length > 0 && (
           <select
             aria-label="选择片源"
@@ -155,7 +176,7 @@ export default function BrowsePage() {
                 onClick={() => setTypeId(c.id)}
                 className={`shrink-0 rounded-full px-4 py-1.5 text-sm transition ${
                   typeId === c.id
-                    ? 'bg-accent text-white'
+                    ? 'bg-accent text-on-accent'
                     : 'bg-chip text-content ring-1 ring-inset ring-line'
                 }`}
               >
@@ -172,7 +193,7 @@ export default function BrowsePage() {
             <EmptyState variant="plain" title="这个分类暂无内容，换个分类或片源试试" />
           ) : (
             <>
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {state.list.map((item) => (
                   <VideoCard key={`${item.sourceKey}:${item.vodId}`} item={item} onClick={() => setDetailItem(item)} />
                 ))}
@@ -203,5 +224,6 @@ export default function BrowsePage() {
       )}
       <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
     </main>
+    <SiteFooter /></div>
   );
 }

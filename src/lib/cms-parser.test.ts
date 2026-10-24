@@ -91,6 +91,10 @@ describe('extractM3u8FromText', () => {
 });
 
 describe('parseDetail', () => {
+  it('简介以纯文本展示，不把上游HTML标签露给用户', () => {
+    const detail = parseDetail({ list: [{ vod_name: '测试片', vod_content: '<p>故事&nbsp;简介</p><p>第二段</p>' }] }, source);
+    expect(detail.videoInfo.desc).toBe('故事 简介 第二段');
+  });
   it('解析详情并提取分集', () => {
     const data = {
       list: [{

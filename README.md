@@ -1,4 +1,12 @@
-# LibreTV
+# 私人TV · 基于 LibreTV
+
+基于 LibreTV 的私人观影界面，使用蓝黑与冷白主题，支持多来源找片、播放、选集、换源、续播、待看片单，以及可收起的喝水、用餐和休息提醒。2026-10-24 的二次修改包括界面、交互、存储容错及媒体中转可靠性改进；保留上游 AGPL 许可与归属。
+
+常用访问入口：[私人TV](https://xiaoyudetv.pages.dev/)。线上保留密码保护；本仓库不包含访问密码或生产环境配置。当前版本的发布、验证与回退见 [PUBLISHING.md](PUBLISHING.md)。
+
+Windows 用户双击 [启动私人TV.cmd](启动私人TV.cmd)，自动打开 http://127.0.0.1:8080/，无需输入密码。双击 [停止私人TV.cmd](停止私人TV.cmd) 关闭本项目服务。首次运行会按锁文件安装依赖并构建，需要可用的 Node.js 22+、npm 和网络。运行中的健康版本会直接打开；遇到不相关的端口占用会明确提示。
+
+本机启动仅监听 127.0.0.1:8080，便利模式不会用于正常线上部署。详细本机使用见 [私人TV_使用与回退.md](私人TV_使用与回退.md)。旧映间、小鱼TV维护记录属于历史参考，不代表当前发布状态。以下保留上游功能说明；上游演示口令与本站无关。
 
 LibreTV Next.js 迁移版：免费在线视频聚合搜索与观看平台。基于 Next.js 15（App Router）+ TypeScript + Tailwind CSS，播放内核为 ArtPlayer + hls.js，支持亮暗双主题。
 
@@ -27,20 +35,19 @@ LibreTV Next.js 迁移版：免费在线视频聚合搜索与观看平台。基�
 
 ## 部署
 
-### Docker（推荐）
+### 本仓库的 Docker 源码构建
 
 ```bash
 # 在 .env 中设置 PASSWORD
 echo "PASSWORD=your-password" > .env
 
-# 方式一：拉取发布镜像（零构建）
-docker compose pull && docker compose up -d
-
-# 方式二：源码构建
+# 构建当前仓库的私人TV，不使用上游预构建镜像
 docker compose up -d --build
 ```
 
-### Docker Compose
+### 上游镜像参考
+
+以下 `ghcr.io/librespark/libretv` / Docker Hub 镜像由上游发布，不包含本仓库的私人TV改版。部署本仓库请使用上面的源码构建方式。
 
 ```yaml
 services:

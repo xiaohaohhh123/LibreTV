@@ -16,17 +16,20 @@ export default function ErrorPage({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error('[小鱼TV] 页面渲染异常:', error);
+    console.error('[私人TV] 页面渲染异常:', error.digest ?? error.name);
   }, [error]);
 
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1 flex items-center justify-center px-4">
+        <div className="space-y-5 text-center">
+        <p className="text-sm font-semibold tracking-widest text-accent">私人TV</p>
         <ErrorState
           message="页面出了点问题，请重试。若持续失败请返回首页。"
           onRetry={reset}
           retryLabel="重试"
         />
+        </div>
       </main>
       <footer className="border-t border-line py-4">
         <p className="text-center text-xs text-faint">

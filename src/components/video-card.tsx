@@ -5,59 +5,14 @@ import type { SearchResultItem } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { SmartImage } from './smart-image';
+import { WatchlistButton } from './watchlist-button';
+import { watchlistFromSearch } from '@/lib/watchlist';
+import { Icon } from './icon';
+import type { AggregatedGroup } from '@/lib/search-results';
+export { aggregateResults } from '@/lib/search-results';
+export type { AggregatedGroup } from '@/lib/search-results';
 
 // —— 跨源同名聚合 ——
-
-export interface AggregatedGroup {
-  key: string;
-  name: string;
-  year?: string;
-  typeName?: string;
-  pic?: string;
-  remarks?: string;
-  items: SearchResultItem[];
-}
-
-function buildGroup(name: string, year: string | undefined, items: SearchResultItem[]): AggregatedGroup {
-  return {
-    key: `${name}|${year ?? ''}|${items.map((i) => `${i.sourceKey}_${i.vodId}`).join(',')}`,
-    name,
-    year,
-    typeName: items.find((i) => i.typeName)?.typeName,
-    pic: items.find((i) => i.pic)?.pic,
-    remarks: items.find((i) => i.remarks)?.remarks,
-    items,
-  };
-}
-
-/**
- * 把扁平的跨源搜索结果按「同名影片」聚合：
- * - 以名称分桶；桶内年份不一致时（同名翻拍）按年份拆分，无年份的条目并入年份桶；
- * - 保持传入顺序（搜索结果已按名称排序）。
- */
-export function aggregateResults(list: SearchResultItem[]): AggregatedGroup[] {
-  const byName = new Map<string, SearchResultItem[]>();
-  for (const item of list) {
-    const k = (item.name || '').trim();
-    if (!k) continue;
-    if (!byName.has(k)) byName.set(k, []);
-    byName.get(k)!.push(item);
-  }
-  const groups: AggregatedGroup[] = [];
-  for (const [name, items] of byName) {
-    const years = [...new Set(items.map((i) => i.year).filter(Boolean))] as string[];
-    if (years.length > 1) {
-      for (const y of years) {
-        groups.push(buildGroup(name, y, items.filter((i) => i.year === y)));
-      }
-      const noYear = items.filter((i) => !i.year);
-      if (noYear.length) groups.push(buildGroup(name, undefined, noYear));
-    } else {
-      groups.push(buildGroup(name, years[0], items));
-    }
-  }
-  return groups;
-}
 
 /**
  * 聚合影片卡片：
@@ -86,7 +41,7 @@ export function AggregatedCard({
   };
 
   return (
-    <div className={cn('card', !multi && 'hover:scale-[1.02] hover:shadow-md', multi && expanded && 'ring-1 ring-accent/40')}>
+    <div className={cn('card', !multi && 'hover:border-accent/60', multi && expanded && 'ring-1 ring-accent/40')}>
       {/* 不用 h-full：展开面板需要撑高卡片，等高裁切会让面板不可见 */}
       <div
         className="flex h-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
@@ -138,7 +93,7 @@ export function AggregatedCard({
             </h3>
             <div className="flex flex-wrap gap-1 mb-1.5">
               {group.typeName && <span className="tag bg-accent/15 text-accent">{group.typeName}</span>}
-              {group.year && <span className="tag bg-purple-500/15 text-purple-600 dark:text-purple-300">{group.year}</span>}
+              {group.year && <span className="tag bg-chip text-muted">{group.year}</span>}
               {adult && <span className="tag bg-pink-500/15 text-pink-600 dark:text-pink-400">(18+)</span>}
             </div>
             <p className="text-xs text-muted line-clamp-2 mb-2">{group.remarks || '暂无介绍'}</p>
@@ -160,6 +115,10 @@ export function AggregatedCard({
             )}
           </div>
         </div>
+      </div>
+
+      <div className="flex justify-end px-3 pb-3">
+        <WatchlistButton item={watchlistFromSearch(group.items[0])} />
       </div>
 
       {multi && expanded && (
@@ -208,20 +167,13 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
   const showImg = !!item.pic && !imgFailed;
 
   return (
-    <div
-      className="card cursor-pointer hover:scale-[1.02] hover:shadow-md h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          // 阻止空格触发页面滚动（AggregatedCard 已是此写法，此处对齐）
-          e.preventDefault();
+    <div className="card hover:border-accent/60 h-full">
+      <div className="flex cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40" role="button" tabIndex={0} onClick={onClick} onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
           onClick();
         }
-      }}
-    >
-      <div className="flex h-full">
+      }}>
         {showImg ? (
           <div className="relative flex-shrink-0 w-[105px] sm:w-[120px] aspect-[2/3] bg-chip">
             <SmartImage
@@ -249,7 +201,7 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
             </h3>
             <div className="flex flex-wrap gap-1 mb-1.5">
               {item.typeName && <span className="tag bg-accent/15 text-accent">{item.typeName}</span>}
-              {item.year && <span className="tag bg-purple-500/15 text-purple-600 dark:text-purple-300">{item.year}</span>}
+              {item.year && <span className="tag bg-chip text-muted">{item.year}</span>}
             </div>
             <p className="text-xs text-muted line-clamp-2 mb-2">{item.remarks || '暂无介绍'}</p>
           </div>
@@ -258,20 +210,22 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
           </div>
         </div>
       </div>
+      <div className="flex justify-end px-3 pb-3"><WatchlistButton item={watchlistFromSearch(item)} /></div>
     </div>
   );
 }
 
 /** 豆瓣推荐卡片（无来源徽章，点击直接搜索） */
-export function DoubanCard({ item, onClick }: { item: { title: string; cover: string; rating?: string }; onClick: () => void }) {
+export function DoubanCard({ item, onClick, order = 0 }: { item: { title: string; cover: string; rating?: string }; onClick: () => void; order?: number }) {
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
   const [imgFailed, setImgFailed] = useState(false);
   useEffect(() => setImgFailed(false), [item.cover]);
 
   return (
+    <div className="card poster-card relative hover:border-accent/60" style={{animationDelay: `${Math.min(order, 8) * 35}ms`}}>
     <div
-      className="card cursor-pointer hover:scale-[1.03] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+      className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
       role="button"
       tabIndex={0}
       onClick={onClick}
@@ -283,14 +237,14 @@ export function DoubanCard({ item, onClick }: { item: { title: string; cover: st
         }
       }}
     >
-      <div className="relative aspect-[2/3] bg-chip">
+      <div className="poster-art relative aspect-[2/3] bg-chip">
         {item.cover && !imgFailed ? (
           <SmartImage
             url={item.cover}
             mode={imageProxyMode}
             customProxy={customImageProxy}
             alt={item.title}
-            className="w-full h-full object-cover"
+            className="poster-image w-full h-full object-cover"
             onExhausted={() => setImgFailed(true)}
           />
         ) : (
@@ -300,17 +254,20 @@ export function DoubanCard({ item, onClick }: { item: { title: string; cover: st
             </svg>
           </div>
         )}
+        <span className="poster-hover" aria-hidden="true"><Icon name="search" className="h-5 w-5" /><span>找片源</span></span>
         {item.rating && (
           <span className={cn('absolute top-1.5 right-1.5 tag bg-black/70 text-rating font-medium')}>
             ★ {item.rating}
           </span>
         )}
       </div>
-      <div className="px-3 py-3">
+      <div className="poster-caption px-3 py-3">
         <div className="text-sm font-medium text-content line-clamp-2 min-h-[2.8em] leading-snug" title={item.title}>
           {item.title}
         </div>
       </div>
+    </div>
+      <WatchlistButton item={{ title: item.title, cover: item.cover, rating: item.rating }} compact className="poster-save absolute top-2 left-2 z-10" />
     </div>
   );
 }

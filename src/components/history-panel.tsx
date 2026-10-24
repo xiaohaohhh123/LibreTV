@@ -31,10 +31,14 @@ const VISIBLE_LIMIT = 50;
 
 export function HistoryPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   // 全量读取（上限即 DB 淘汰上限）：默认只渲染最近若干条，搜索时覆盖更早的记录
-  const history = useLiveQuery(
-    () => db.history.orderBy('timestamp').reverse().limit(MAX_HISTORY).toArray(),
+  const historyResult = useLiveQuery(
+    async () => {
+      try { return { entries: await db.history.orderBy('timestamp').reverse().limit(MAX_HISTORY).toArray(), failed: false }; }
+      catch { return { entries: [], failed: true }; }
+    },
     [open]
   );
+  const history = historyResult?.entries;
   const { toast } = useToast();
   const [confirmClear, setConfirmClear] = useState(false);
   const [query, setQuery] = useState('');
@@ -97,7 +101,9 @@ export function HistoryPanel({ open, onClose }: { open: boolean; onClose: () => 
         ) : undefined
       }
     >
-      {!history ? (
+      {historyResult?.failed ? (
+        <EmptyState variant="plain" title="暂时无法读取观看记录" description="请检查浏览器存储权限。现有记录不会被清空，搜索仍可使用。" />
+      ) : !history ? (
         <LoadingState />
       ) : total === 0 ? (
         <EmptyState variant="plain" title="暂无观看记录" />

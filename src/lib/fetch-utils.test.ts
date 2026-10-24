@@ -23,6 +23,42 @@ afterEach(() => {
 });
 
 describe('fetchUpstream 安全跳转', () => {
+  it('一次超时后的重试使用新的截止信号，仍可成功', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn((_url: string, init: RequestInit) => {
+      calls++;
+      const signal = init.signal!;
+      if (signal.aborted) return Promise.reject(signal.reason);
+      if (calls > 1) return Promise.resolve(new Response('retry recovered'));
+      return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+    }));
+    const res = await fetchUpstream(PUBLIC_URL, { timeoutMs: 15, retries: 1 });
+    expect(await res.text()).toBe('retry recovered');
+    expect(calls).toBe(2);
+  });
+
+  it('调用方取消后不再重试', async () => {
+    const controller = new AbortController();
+    const spy = vi.fn(() => {
+      controller.abort();
+      return Promise.reject(controller.signal.reason);
+    });
+    vi.stubGlobal('fetch', spy);
+    await expect(fetchUpstream(PUBLIC_URL, { signal: controller.signal, retries: 2 })).rejects.toThrow();
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('跟随跳转前释放上一跳响应流', async () => {
+    const cancel = vi.fn();
+    const body = new ReadableStream({ cancel });
+    mockFetch([
+      () => new Response(body, { status: 302, headers: { location: 'https://93.184.216.34/b' } }),
+      () => new Response('ok'),
+    ]);
+    await fetchUpstream(PUBLIC_URL);
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
   it('302 跳转到内网地址时拒绝，且不发起第二跳请求', async () => {
     const spy = mockFetch([
       () => new Response(null, { status: 302, headers: { location: 'http://127.0.0.1:8080/secret' } }),

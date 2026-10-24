@@ -18,6 +18,7 @@ import { rewriteM3u8, LIVE_STREAM_BASE } from '@/lib/m3u8';
 const TIMEOUT_MS = parseInt(process.env.REQUEST_TIMEOUT || '8000', 10);
 const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || '1', 10);
 const HEADER_TIMEOUT_MS = 15_000;
+const VOD_BODY_TIMEOUT_MS = Math.max(TIMEOUT_MS, 60_000);
 const UA =
   process.env.USER_AGENT ||
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
@@ -92,35 +93,49 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
   let response: Response | undefined;
   let finalUrl = targetUrl;
   let lastError: unknown = null;
+  let bodyController: AbortController | undefined;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (req.signal.aborted) { lastError = req.signal.reason; break; }
     try {
+      bodyController = new AbortController();
       const result = await fetchWithSafeRedirects(targetUrl, {
         headers,
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
+        // 连接保持短死线；大分片允许传完，仍受客户端取消与60秒总上限约束。
+        signal: AbortSignal.any([req.signal, bodyController.signal, AbortSignal.timeout(VOD_BODY_TIMEOUT_MS)]),
+      }, { headerTimeoutMs: TIMEOUT_MS });
       response = result.res;
       finalUrl = result.finalUrl;
       lastError = null;
       break;
     } catch (err) {
       lastError = err;
+      if (req.signal.aborted) break;
     }
   }
   if (!response) {
     return new NextResponse(
       `代理请求失败: ${lastError instanceof Error ? lastError.message : '未知错误'}`,
-      { status: 502 }
+      { status: 502, headers: { 'Cache-Control': 'no-store' } }
     );
   }
 
   const contentType = response.headers.get('content-type') || '';
-  const isM3u8 =
-    contentType.includes('mpegurl') || contentType.includes('x-mpegurl') ||
-    targetUrl.toLowerCase().endsWith('.m3u8');
+  const isM3u8 = response.ok && (
+    contentType.toLowerCase().includes('mpegurl') ||
+    new URL(finalUrl).pathname.toLowerCase().endsWith('.m3u8') ||
+    new URL(targetUrl).pathname.toLowerCase().endsWith('.m3u8')
+  );
 
   // m3u8 文本：重写为代理地址（以重定向后的最终 URL 为 base 解析相对地址）
   if (isM3u8) {
-    const text = await response.text();
+    let text: string;
+    const timer = setTimeout(() => bodyController?.abort(), TIMEOUT_MS);
+    try { text = await response.text(); }
+    catch { return new NextResponse('播放列表读取失败，请稍后重试或更换来源', { status: 502, headers: { 'Cache-Control': 'no-store' } }); }
+    finally { clearTimeout(timer); }
+    if (!text.trimStart().startsWith('#EXTM3U')) {
+      return new NextResponse('来源没有返回有效的播放列表', { status: 502, headers: { 'Cache-Control': 'no-store' } });
+    }
     return new NextResponse(rewriteM3u8(text, finalUrl), {
       status: response.status,
       headers: {
@@ -141,7 +156,7 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
   // 图片基本不变：长缓存交给浏览器与边缘 CDN（分片 / key 仍保守 1 小时）
   outHeaders.set(
     'Cache-Control',
-    contentType.startsWith('image/') ? 'public, max-age=2592000' : 'public, max-age=3600'
+    !response.ok ? 'no-store' : contentType.startsWith('image/') ? 'public, max-age=2592000' : 'public, max-age=3600'
   );
   outHeaders.set('Access-Control-Allow-Origin', '*');
 

@@ -52,6 +52,11 @@ describe('buildImageCandidates', () => {
     expect(cands[0]).toBe('https://doubanio.com/a.jpg');
   });
 
+  it('路径或查询里出现豆瓣域名不把其他图床改写成镜像', () => {
+    const url = 'https://example.com/img3.doubanio.com/cover.jpg?origin=doubanio.com';
+    expect(buildImageCandidates(url, 'direct', '')).toEqual([url, '/api/proxy?url=' + encodeURIComponent(url)]);
+  });
+
   it('proxy 模式豆瓣图：内置代理 → 双镜像 → 直连（代理故障可回退）', () => {
     expect(buildImageCandidates(DOUBAN, 'proxy', '')).toEqual([
       '/api/proxy?url=' + encodeURIComponent(DOUBAN),

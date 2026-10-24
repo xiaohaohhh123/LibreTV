@@ -1,35 +1,23 @@
 import type { Metadata, Viewport } from 'next';
-import { Noto_Sans_SC, Noto_Serif_SC } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
-import { LoveLetterEasterEgg, KonamiFishEasterEgg } from '@/components/xiaoyu-easter-eggs';
-import { WelcomeAnimation } from '@/components/welcome-animation';
-
-/** 正文/界面字体：Noto Sans SC，圆润现代 */
-const notoSansSC = Noto_Sans_SC({
-  subsets: ['latin'],
-  weight: ['400', '500', '700', '900'],
-  display: 'swap',
-  variable: '--font-sans-sc',
-});
-
-/** 标题/问候语字体：Noto Serif SC，优雅有质感 */
-const notoSerifSC = Noto_Serif_SC({
-  subsets: ['latin'],
-  weight: ['600', '700', '900'],
-  display: 'swap',
-  variable: '--font-serif-sc',
-});
 
 export const metadata: Metadata = {
   title: {
-    default: '小鱼TV - 在线视频搜索与观看',
-    template: '%s - 小鱼TV',
+    default: '私人TV',
+    template: '%s · 私人TV',
   },
   description:
-    '小鱼的私人放映室，提供多来源影视搜索、播放、续播与选集，陪你轻松看喜欢的节目。',
+    '搜索影片、选择片源、继续观看，管理自己的待看片单。',
+  applicationName: '私人TV',
+  openGraph: {
+    title: '私人TV',
+    description: '搜索影片，接着上次看。',
+    locale: 'zh_CN',
+    type: 'website',
+  },
   manifest: '/manifest.webmanifest',
-  // 各尺寸由同一小鱼矢量图导出，网页和添加到主屏幕时保持一致。
+  // 各尺寸由同一品牌矢量图导出。
   icons: {
     icon: [
       { url: '/brand-mark.svg', sizes: 'any', type: 'image/svg+xml' },
@@ -43,14 +31,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0d141c',
+  themeColor: '#0B101A',
   width: 'device-width',
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning className={`${notoSansSC.variable} ${notoSerifSC.variable}`}>
+    <html lang="zh-CN" suppressHydrationWarning>
       <head>
         {/* 首屏前同步主题，避免亮暗闪烁 */}
         <script
@@ -62,10 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Providers>
-          <WelcomeAnimation />
           {children}
-          <LoveLetterEasterEgg />
-          <KonamiFishEasterEgg />
         </Providers>
       </body>
     </html>

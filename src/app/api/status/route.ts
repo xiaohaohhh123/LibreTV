@@ -5,16 +5,20 @@ import { getEnvLiveSources } from '@/lib/env-live-sources';
 import { getEnvSubscriptions } from '@/lib/env-subscriptions';
 import { getEnvRecommendSource } from '@/lib/env-recommend-source';
 import { getEnvImageMode } from '@/lib/env-image-mode';
+import { getLocalPreview } from '@/lib/local-preview';
 
 export const runtime = 'nodejs';
 
 /** 站点状态：客户端据此决定是否弹出登录框 / 提示管理员配置密码，并获取预置采集站与预置直播源 */
 export async function GET(req: Request) {
-  const passwordRequired = isPasswordConfigured();
-  const verified = passwordRequired && sessionFromCookieHeader(req.headers.get('cookie'));
+  const preview = getLocalPreview();
+  const passwordRequired = !preview && isPasswordConfigured();
+  const verified = Boolean(preview) || (passwordRequired && sessionFromCookieHeader(req.headers.get('cookie')));
   return NextResponse.json({
     passwordRequired,
     verified,
+    localPreview: Boolean(preview),
+    previewBuildId: preview?.buildId ?? null,
     // 构建时由 next.config.ts 从 package.json 注入
     version: process.env.APP_VERSION || 'dev',
     // 部署者通过 DEFAULT_SOURCES 预置的采集站

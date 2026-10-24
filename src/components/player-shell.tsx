@@ -47,6 +47,8 @@ interface PlayerShellProps {
   onRequestNext?: () => void;
   /** 进度恢复：优先 URL position，其次查询该回调（返回 0 表示无记录） */
   getRestorePosition?: () => number | Promise<number>;
+  /** 轻量进度采样用于立即换源；不触发每帧持久化。 */
+  onPositionChange?: (position: number) => void;
   onTimeUpdate?: (position: number, duration: number) => void;
   onEnded?: () => void;
   onPause?: (position: number, duration: number) => void;
@@ -69,6 +71,7 @@ export function PlayerShell({
   outroNextSeconds = 90,
   onRequestNext,
   getRestorePosition,
+  onPositionChange,
   onTimeUpdate,
   onEnded,
   onPause,
@@ -103,12 +106,12 @@ export function PlayerShell({
   const propsRef = useRef({
     url, title, adFilter, autoplayNext, episodeKey, nextUrl, nextEpisodeKey,
     skipIntroSeconds, outroNextSeconds, onRequestNext,
-    getRestorePosition, onTimeUpdate, onEnded, onPause, onRequestSwitchSource,
+    getRestorePosition, onPositionChange, onTimeUpdate, onEnded, onPause, onRequestSwitchSource,
   });
   propsRef.current = {
     url, title, adFilter, autoplayNext, episodeKey, nextUrl, nextEpisodeKey,
     skipIntroSeconds, outroNextSeconds, onRequestNext,
-    getRestorePosition, onTimeUpdate, onEnded, onPause, onRequestSwitchSource,
+    getRestorePosition, onPositionChange, onTimeUpdate, onEnded, onPause, onRequestSwitchSource,
   };
 
   // 跨集共享、每次换集重置的播放链路状态
@@ -370,7 +373,7 @@ export function PlayerShell({
       airplay: true,
       hotkey: false,
       gesture: true,
-      theme: getComputedStyle(document.documentElement).getPropertyValue('--c-accent').trim() ? `rgb(${getComputedStyle(document.documentElement).getPropertyValue('--c-accent').trim()})` : '#b7a3f4',
+      theme: getComputedStyle(document.documentElement).getPropertyValue('--c-accent').trim() ? `rgb(${getComputedStyle(document.documentElement).getPropertyValue('--c-accent').trim()})` : '#00B8E6',
       lang: navigator.language.toLowerCase().startsWith('zh') ? 'zh-cn' : 'en',
       moreVideoAttr: { crossOrigin: 'anonymous', playsInline: true },
       customType: {
@@ -413,6 +416,7 @@ export function PlayerShell({
       propsRef.current.onRequestSwitchSource?.('当前线路播放失败', art.currentTime);
     });
     art.on('video:timeupdate', () => {
+      propsRef.current.onPositionChange?.(art.currentTime);
       const now = Date.now();
       if (now - lastSave > 5000) {
         lastSave = now;
@@ -427,6 +431,9 @@ export function PlayerShell({
       }
     });
     art.on('video:seeked', () => {
+      lastSave = Date.now();
+      propsRef.current.onPositionChange?.(art.currentTime);
+      propsRef.current.onTimeUpdate?.(art.currentTime, art.duration);
       ensurePrefetch(currentMediaUrlRef.current, art.currentTime);
     });
     art.on('video:pause', () => {

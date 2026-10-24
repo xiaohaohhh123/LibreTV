@@ -41,7 +41,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: '无效的点播源配置' }, { status: 400 });
   }
 
-  if (source.isAdult) return NextResponse.json({ error: '此来源不在小鱼TV的内容范围内' }, { status: 403 });
+  if (source.isAdult) return NextResponse.json({ error: '此来源不在私人TV的内容范围内' }, { status: 403 });
 
   try {
     // 命中 60s 缓存直接返回（仅缓存成功拿到剧集的结果）
@@ -98,7 +98,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: '未找到播放资源' }, { status: 404 });
     }
     if (!filterAdultResults([{ name: resolved.videoInfo.title, typeName: resolved.videoInfo.typeName }], true).length) {
-      return NextResponse.json({ error: '此内容不在小鱼TV的内容范围内' }, { status: 403 });
+      return NextResponse.json({ error: '此内容不在私人TV的内容范围内' }, { status: 403 });
     }
     setCache(cacheKey, resolved, DETAIL_CACHE_TTL);
     return NextResponse.json(resolved);

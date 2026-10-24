@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from 'dexie';
 import type { SourceConfig } from './types';
 // 仅类型引入：store.ts 运行时会引用本模块，反向只取类型不会形成运行时循环
 import type { LiveProbeEntry } from './store';
+import type { WatchlistEntry } from './watchlist';
 import { PERSIST_KEY, flushPendingPersist } from './persist-storage';
 
 /**
@@ -77,6 +78,7 @@ export const db = new Dexie('libretv') as Dexie & {
   liveProbe: EntityTable<LiveProbeEntry & { url: string }, 'url'>;
   segmentMeta: EntityTable<SegmentMetaEntry, 'key'>;
   downloads: EntityTable<DownloadTaskEntry, 'id'>;
+  watchlist: EntityTable<WatchlistEntry, 'id'>;
 };
 
 db.version(1).stores({
@@ -94,6 +96,11 @@ db.version(2).stores({
 db.version(3).stores({
   segmentMeta: 'key, episodeKey, lastAccess',
   downloads: 'id, createdAt',
+});
+
+// v4 只新增待看片单，保留原有观看历史、进度与设置。
+db.version(4).stores({
+  watchlist: 'id, titleKey, addedAt',
 });
 
 export const MAX_HISTORY = 100;

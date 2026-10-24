@@ -54,7 +54,7 @@ export function buildImageUrl(
  * 封面图降级候选链，各模式首选地址失败后由 SmartImage 按序回退（onError 逐级尝试）：
  * - direct 模式：原站直连 → cmliussss 公共镜像（腾讯 / 阿里，仅豆瓣图）→ 内置代理。
  *   doubanio 反爬对外域与空 Referer 分别返回 403 / 418，纯前端无法绕过；
- *   公共镜像实测直连可用，置于自家代理之前以节省服务器流量。
+ *   现有公共镜像作为候选，实际可达性由图片加载结果决定，不能保证长期可用。
  * - proxy 模式：内置代理 → 公共镜像（仅豆瓣图）→ 原站直连。
  *   代理是全站封面的公共依赖，不能单点——代理故障时自动落到直连/镜像。
  * - custom 模式为单一地址：模板错误应显式暴露，不被静默回退掩盖。
@@ -66,12 +66,15 @@ export function buildImageCandidates(
 ): string[] {
   const built = buildImageUrl(url, mode, customTemplate);
   if (!built || !url) return [];
-  const mirrors = url.includes('doubanio.com')
-    ? [
-        url.replace(/img\d+\.doubanio\.com/g, 'img.doubanio.cmliussss.net'),
-        url.replace(/img\d+\.doubanio\.com/g, 'img.doubanio.cmliussss.com'),
-      ]
-    : [];
+  const mirrors: string[] = [];
+  try {
+    const original = new URL(url);
+    if (/^img\d+\.doubanio\.com$/i.test(original.hostname)) {
+      for (const hostname of ['img.doubanio.cmliussss.net', 'img.doubanio.cmliussss.com']) {
+        const mirror = new URL(original); mirror.hostname = hostname; mirrors.push(mirror.href);
+      }
+    }
+  } catch { /* 无效图片地址不扩展到镜像。 */ }
   if (mode === 'proxy') {
     return [...new Set([built, ...mirrors, url])];
   }

@@ -206,7 +206,7 @@ export async function POST(req: Request) {
   if (!Array.isArray(body.sources) || body.sources.length === 0) {
     return NextResponse.json({ error: '请至少选择一个点播源' }, { status: 400 });
   }
-  // 小鱼TV 的内容边界在服务端生效，旧配置与请求参数不能关闭。
+  // 私人TV 的内容边界在服务端生效，旧配置与请求参数不能关闭。
   const sources = body.sources.slice(0, 50).filter((source) => !source.isAdult);
   const filterAdult = true;
 

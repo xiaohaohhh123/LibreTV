@@ -91,7 +91,7 @@ export function PlayerChrome({ art, title, episodeLabel, episodeNames, currentIn
     {hosts.speed && createPortal(<button ref={speedButton} className="cinema-bar-button" aria-label={`播放速度，当前 ${rate} 倍`} aria-expanded={panel === 'speed'} aria-controls="cinema-speed-panel" onClick={() => setPanel(panel === 'speed' ? null : 'speed')}>{rate === 1 ? '倍速' : `${rate}x`}</button>, hosts.speed)}
     {hosts.episodes && createPortal(episodeNames.length > 1 ? <button ref={episodesButton} className="cinema-bar-button" aria-expanded={panel === 'episodes'} aria-controls="cinema-episodes-panel" onClick={() => setPanel(panel === 'episodes' ? null : 'episodes')}>选集</button> : null, hosts.episodes)}
     {createPortal(<div className="cinema-overlays" data-controls-visible={controlsVisible || panel !== null} data-locked={locked}>
-      {!locked && <div className="cinema-topline"><span>{title}<small>{episodeLabel}</small></span><span className="cinema-watermark">小鱼 · 放映室</span></div>}
+      {!locked && <div className="cinema-topline"><span>{title}<small>{episodeLabel}</small></span><span className="cinema-watermark">私人TV · 放映中</span></div>}
       {children}
       {panel && !locked && <>
         <button className="cinema-panel-dismiss" aria-label="关闭播放面板" onClick={closePanel} />

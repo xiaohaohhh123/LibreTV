@@ -11,6 +11,9 @@ import { Icon } from './icon';
 import { SearchHistoryDropdown, useSearchHistory } from './search-history';
 import { cn } from '@/lib/utils';
 import { BrandLogo } from './brand-logo';
+import { WatchlistPanel } from './watchlist-panel';
+import { DetailModal } from './detail-modal';
+import type { SearchResultItem } from '@/lib/types';
 
 /** 顶部导航：Logo、搜索框（首页外）、历史、设置 */
 export function Header({ showSearch = false }: { showSearch?: boolean }) {
@@ -18,6 +21,9 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
   const pathname = usePathname();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [watchlistOpen, setWatchlistOpen] = useState(false);
+  const [composing, setComposing] = useState(false);
+  const [savedDetail, setSavedDetail] = useState<SearchResultItem | null>(null);
   const [query, setQuery] = useState('');
   // 与首页搜索框共用同一套「最近搜索」下拉逻辑
   const searchHistory = useSearchHistory(query);
@@ -39,8 +45,8 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
   return (
     <>
       <header className="site-header sticky top-0 z-40 bg-surface/90 backdrop-blur border-b border-line">
-        <div className="max-w-6xl mx-auto px-4 min-h-16 flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
-          <Link href="/" aria-label="小鱼TV 首页" className="flex items-center shrink-0 gap-2">
+        <div className="max-w-6xl mx-auto px-4 flex flex-wrap items-center gap-x-2 gap-y-1 py-2">
+          <Link href="/" aria-label="私人TV 首页" className="flex items-center shrink-0 gap-2">
             <span className="text-lg">
               <BrandLogo />
             </span>
@@ -48,10 +54,10 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
 
           {showSearch && (
             <form
-              className="flex-1 max-w-xl hidden sm:block"
+              className="flex-1 max-w-xl hidden lg:block"
               onSubmit={(e) => {
                 e.preventDefault();
-                submitSearch(query);
+                if (!composing) submitSearch(query);
               }}
             >
               <div ref={searchHistory.containerRef} className="relative">
@@ -71,6 +77,8 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
                     searchHistory.resetActive();
                   }}
                   onFocus={searchHistory.onFocus}
+                  onCompositionStart={() => setComposing(true)}
+                  onCompositionEnd={() => setComposing(false)}
                   onKeyDown={(e) => searchHistory.onKeyDown(e, pickHistory)}
                   role="combobox"
                   aria-expanded={searchHistory.visible}
@@ -97,7 +105,7 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
           )}
 
           <nav className="contents" aria-label="主导航">
-            <div className="header-pages order-3 basis-full flex items-center gap-1 sm:order-none sm:basis-auto sm:ml-auto">
+            <div className="header-pages order-3 basis-full flex items-center gap-1 lg:order-none lg:basis-auto lg:ml-auto">
             <HeaderLink href="/" active={pathname === '/'}>发现</HeaderLink>
             <HeaderLink href="/live" active={pathname === '/live'}>
               直播
@@ -105,11 +113,12 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
             <HeaderLink href="/browse" active={pathname === '/browse'}>
               片库
             </HeaderLink>
+            <button className="header-watchlist px-3 py-2 rounded-lg text-sm text-muted" onClick={() => setWatchlistOpen(true)}>待看</button>
             <HeaderLink href="/about" active={pathname === '/about'}>
               关于
             </HeaderLink>
             </div>
-            <div className="flex items-center gap-1 ml-auto sm:ml-0">
+            <div className="header-tools flex items-center ml-auto lg:ml-0">
             <ThemeToggle />
             <IconButton label="观看历史" onClick={() => setHistoryOpen(true)}>
               <Icon name="clock" />
@@ -127,6 +136,8 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
 
       <SourceManagerDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
+      <WatchlistPanel open={watchlistOpen} onClose={() => setWatchlistOpen(false)} onPick={(title) => { setWatchlistOpen(false); submitSearch(title); }} onOpen={setSavedDetail} />
+      <DetailModal item={savedDetail} onClose={() => setSavedDetail(null)} />
     </>
   );
 }

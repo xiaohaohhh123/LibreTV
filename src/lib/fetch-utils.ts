@@ -54,11 +54,10 @@ export async function fetchWithSafeRedirects(
   const { allowPrivate = false, headerTimeoutMs } = options;
   let current = url;
   // headerTimeout 超时即 abort 内部 controller；外部 signal（调用方死线/客户端断开）链入同一 controller
-  const controller = new AbortController();
-  if (init.signal) {
-    if (init.signal.aborted) controller.abort(init.signal.reason);
-    else init.signal.addEventListener('abort', () => controller.abort(init.signal?.reason), { once: true });
-  }
+  const controller = headerTimeoutMs ? new AbortController() : null;
+  const signal = controller
+    ? (init.signal ? AbortSignal.any([init.signal, controller.signal]) : controller.signal)
+    : init.signal;
   for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
     const verdict = allowPrivate
       ? await checkLiveUrlAllowed(current)
@@ -66,16 +65,17 @@ export async function fetchWithSafeRedirects(
     if (!verdict.ok) {
       throw new Error(`跳转目标被拒绝: ${verdict.reason}`);
     }
-    const timer = headerTimeoutMs ? setTimeout(() => controller.abort(), headerTimeoutMs) : null;
+    const timer = headerTimeoutMs ? setTimeout(() => controller!.abort(), headerTimeoutMs) : null;
     let res: Response;
     try {
-      res = await fetch(current, { ...init, signal: controller.signal, redirect: 'manual' });
+      res = await fetch(current, { ...init, signal, redirect: 'manual' });
     } finally {
       if (timer) clearTimeout(timer);
     }
     if (!REDIRECT_STATUSES.has(res.status)) return { res, finalUrl: current };
     const location = res.headers.get('location');
     if (!location) return { res, finalUrl: current };
+    try { await res.body?.cancel(); } catch { /* 释放跳转响应失败不影响下一跳校验。 */ }
     current = new URL(location, current).href;
   }
   throw new Error('重定向次数过多');
@@ -88,14 +88,13 @@ export async function fetchUpstream(url: string, options: FetchOptions = {}): Pr
 /** 同 fetchUpstream，额外返回重定向后的最终 URL */
 export async function fetchUpstreamWithMeta(url: string, options: FetchOptions = {}): Promise<FetchResult> {
   const { timeoutMs = 8000, retries = 0, safeRedirects = true, allowPrivate = false, ...init } = options;
-  // 外部 signal（调用方的总死线中断）与单次超时合并：任一触发即中断请求
-  const timeoutSignal = AbortSignal.timeout(timeoutMs);
-  const signal = init.signal
-    ? AbortSignal.any([init.signal, timeoutSignal])
-    : timeoutSignal;
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      init.signal?.throwIfAborted();
+      // 每次尝试有独立死线；复用已超时的 signal 会让重试立即失败。
+      const timeoutSignal = AbortSignal.timeout(timeoutMs);
+      const signal = init.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal;
       if (!safeRedirects) {
         const res = await fetch(url, {
           ...init,
@@ -108,6 +107,7 @@ export async function fetchUpstreamWithMeta(url: string, options: FetchOptions =
       return await fetchWithSafeRedirects(url, { ...init, signal }, { allowPrivate });
     } catch (err) {
       lastError = err;
+      if (init.signal?.aborted) break;
     }
   }
   throw lastError instanceof Error ? lastError : new Error('上游请求失败');

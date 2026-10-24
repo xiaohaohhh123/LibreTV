@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Drawer } from './drawer';
 import { Icon } from './icon';
 import { useToast } from './toast';
+import { ErrorState } from './states';
 import { db, type DownloadTaskEntry } from '@/lib/db';
 import {
   PauseResumeController,
@@ -43,15 +44,21 @@ interface RunningHandle {
 export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<DownloadTaskEntry[]>([]);
+  const [storageError, setStorageError] = useState(false);
   const [capability, setCapability] = useState<'fs-access' | 'memory'>('memory');
   const running = useRef(new Map<string, RunningHandle>());
 
   const refresh = useCallback(() => {
-    void db.downloads.orderBy('createdAt').reverse().toArray().then(setTasks);
+    void db.downloads.orderBy('createdAt').reverse().toArray().then(setTasks).catch(() => setStorageError(true));
   }, []);
 
   const updateEntry = useCallback(async (id: string, patch: Partial<DownloadTaskEntry>) => {
-    await db.downloads.update(id, { ...patch, updatedAt: Date.now() });
+    try {
+      await db.downloads.update(id, { ...patch, updatedAt: Date.now() });
+    } catch (error) {
+      setStorageError(true);
+      throw error;
+    }
     refresh();
   }, [refresh]);
 
@@ -62,14 +69,19 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
       const abort = new AbortController();
       const pause = new PauseResumeController();
       running.current.set(entry.id, { abort, pause, hasTarget });
-      await updateEntry(entry.id, { status: 'downloading' });
+      try {
+        await updateEntry(entry.id, { status: 'downloading' });
+      } catch {
+        running.current.delete(entry.id);
+        return;
+      }
 
       const onProgress = (p: DownloadProgress) => {
         void updateEntry(entry.id, {
           finished: p.current,
           total: p.total,
           status: p.status === 'done' ? 'completed' : p.status === 'error' ? 'error' : 'downloading',
-        });
+        }).catch(() => setStorageError(true));
       };
 
       const job = runDownloadJob({
@@ -109,7 +121,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
         .finally(() => {
           running.current.delete(entry.id);
           scheduleNext();
-        });
+        }).catch(() => setStorageError(true));
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [toast, updateEntry]
@@ -128,9 +140,9 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
         void startTask(
           { ...entry, format: entry.format },
           (globalThis as { __dlSaveTarget?: { id: string } }).__dlSaveTarget?.id === entry.id
-        );
+        ).catch(() => setStorageError(true));
       }
-    })();
+    })().catch(() => setStorageError(true));
   }, [startTask]);
 
   // —— 事件：新增任务（用户手势内触发，可安全弹文件选择器） ——
@@ -172,7 +184,10 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
         refresh();
         scheduleNext();
         toast(`《${detail.title}》已加入下载队列`, 'success');
-      })();
+      })().catch(() => {
+        setStorageError(true);
+        toast('存储不可用，无法保存下载任务', 'error');
+      });
     };
 
     window.addEventListener(ADD_TASK_EVENT, onAdd);
@@ -245,12 +260,13 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
           保存能力：{capability === 'fs-access' ? '磁盘直写（边下边存）' : '内存聚合（完成后浏览器下载）'} ·
           同时进行 {Math.min(running.current.size, MAX_CONCURRENT_DOWNLOADS)}/{MAX_CONCURRENT_DOWNLOADS} 个任务
         </p>
-        {tasks.length === 0 && (
+        {storageError && <ErrorState message="存储不可用，无法读取或保存下载任务。请检查浏览器存储权限后重试。" onRetry={() => { setStorageError(false); refresh(); }} />}
+        {!storageError && tasks.length === 0 && (
           <div className="py-10 text-center text-sm text-faint">
             暂无下载任务。在播放页点击「下载本集」开始。
           </div>
         )}
-        {tasks.map((t) => (
+        {!storageError && tasks.map((t) => (
           <div key={t.id} className="card p-3 space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -265,7 +281,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
                   <button
                     type="button"
                     className="px-2 py-1 rounded bg-chip hover:bg-hover text-xs text-content transition-colors"
-                    onClick={() => void onPauseResume(t)}
+                    onClick={() => void onPauseResume(t).catch(() => setStorageError(true))}
                   >
                     暂停
                   </button>
@@ -274,7 +290,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
                   <button
                     type="button"
                     className="px-2 py-1 rounded bg-chip hover:bg-hover text-xs text-content transition-colors"
-                    onClick={() => void onPauseResume(t)}
+                    onClick={() => void onPauseResume(t).catch(() => setStorageError(true))}
                   >
                     继续
                   </button>
@@ -283,7 +299,7 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
                   type="button"
                   aria-label="删除下载任务"
                   className="p-1.5 rounded bg-chip hover:bg-hover text-content transition-colors"
-                  onClick={() => void onCancel(t)}
+                  onClick={() => void onCancel(t).catch(() => setStorageError(true))}
                 >
                   <Icon name="close" className="w-4 h-4" />
                 </button>
